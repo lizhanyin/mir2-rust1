@@ -1,0 +1,168 @@
+// Library Editor 主窗口
+
+export component AppWindow inherits Window {
+    title: "Library Editor - Rust";
+    width: 800px;
+    height: 600px;
+
+    in-out property <string> status_text: "就绪";
+    in-out property <string> file_name: "";
+    in-out property <int> image_count: 0;
+
+    callback open_file();
+    callback save_file();
+
+    // 主内容
+    Rectangle {
+        background: #f5f5f5;
+
+        VerticalLayout {
+            padding: 16px;
+            spacing: 8px;
+
+            Rectangle {
+                background: white;
+                border-width: 1px;
+                border-color: #ddd;
+                border-radius: 4px;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "Library Editor";
+                        font-size: 18px;
+                        font-weight: 700;
+                    }
+
+                    Text {
+                        text: "传奇2库文件编辑器 - Rust版本";
+                        color: #666;
+                    }
+                }
+            }
+
+            Rectangle {
+                background: white;
+                border-width: 1px;
+                border-color: #ddd;
+                border-radius: 4px;
+                height: 80px;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 8px;
+
+                    Text {
+                        text: "操作";
+                        font-weight: 600;
+                    }
+
+                    HorizontalLayout {
+                        spacing: 8px;
+
+                        TouchArea {
+                            clicked => { root.open_file(); }
+
+                            Rectangle {
+                                background: #007bff;
+                                border-radius: 4px;
+
+                                Text {
+                                    text: "打开文件";
+                                    color: white;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        TouchArea {
+                            clicked => { root.save_file(); }
+
+                            Rectangle {
+                                background: #28a745;
+                                border-radius: 4px;
+
+                                Text {
+                                    text: "保存文件";
+                                    color: white;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                background: white;
+                border-width: 1px;
+                border-color: #ddd;
+                border-radius: 4px;
+
+                VerticalLayout {
+                    padding: 12px;
+                    spacing: 4px;
+
+                    Text {
+                        text: "支持格式";
+                        font-weight: 600;
+                    }
+
+                    Text {
+                        text: "• MLibrary V1 (.wzl/.wzx)";
+                        color: #666;
+                        font-size: 12px;
+                    }
+
+                    Text {
+                        text: "• MLibrary V2 (.Lib)";
+                        color: #666;
+                        font-size: 12px;
+                    }
+
+                    Text {
+                        text: "• WeMade Library (.wil/.wix)";
+                        color: #666;
+                        font-size: 12px;
+                    }
+
+                    Text {
+                        text: "• WTL Library (.wtl)";
+                        color: #666;
+                        font-size: 12px;
+                    }
+                }
+            }
+
+            Rectangle {
+                background: white;
+                border-width: 1px;
+                border-color: #ddd;
+                border-radius: 4px;
+
+                VerticalLayout {
+                    padding: 12px;
+
+                    Text {
+                        text: "状态: " + root.status_text;
+                        color: #666;
+                    }
+
+                    Text {
+                        text: "当前文件: " + root.file_name;
+                        color: #666;
+                    }
+
+                    Text {
+                        text: "图像总数: " + root.image_count;
+                        color: #666;
+                    }
+                }
+            }
+        }
+    }
+}

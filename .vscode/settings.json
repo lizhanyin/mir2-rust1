@@ -1,0 +1,61 @@
+{
+    // Rust 分析器设置
+    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.cargo.features": "all",
+    "rust-analyzer.cargo.loadOutDirsFromCheck": true,
+    "rust-analyzer.procMacro.enable": true,
+
+    // 格式化设置
+    "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
+
+    // 调试设置
+    "lldb.library": "duplicate",
+    "lldb.diagnostics": "verbose",
+    "lldb.displayFormat": "auto",
+
+    // 编辑器设置
+    "[rust]": {
+        "editor.defaultFormatter": "rust-lang.rust-analyzer",
+        "editor.formatOnSave": true,
+        "editor.semanticHighlighting.enabled": true
+    },
+
+    "[toml]": {
+        "editor.formatOnSave": true
+    },
+
+    // 文件关联
+    "files.associations": {
+        "*.rs": "rust",
+        "Cargo.toml": "toml",
+        "Cargo.lock": "toml"
+    },
+
+    // 终端设置
+    "terminal.integrated.env.windows": {
+        "RUST_BACKTRACE": "1"
+    },
+
+    // 问题匹配器
+    "rust-analyzer.diagnostics.previewRustcOutput": true,
+
+    // Inlay Hints (内联提示)
+    "rust-analyzer.inlayHints.typeHints.enable": true,
+    "rust-analyzer.inlayHints.parameterHints.enable": true,
+    "rust-analyzer.inlayHints.chainingHints.enable": true,
+    "rust-analyzer.inlayHints.bindingModeHints.enable": true,
+
+    // 代码Lens
+    "rust-analyzer.lens.enable": true,
+    "rust-analyzer.lens.run.enable": true,
+
+    // 补全设置
+    "rust-analyzer.completion.autoimport.enable": true,
+    "rust-analyzer.completion.autoself.enable": true,
+    "rust-analyzer.completion.callable.snippets": "add",
+
+    // 语义高亮
+    "rust-analyzer.semanticHighlighting.string.enable": true,
+    "rust-analyzer.semanticHighlighting.operator.enable": true,
+    "rust-analyzer.semanticHighlighting.typeHints.enable": true
+}
