@@ -1,2 +1,45 @@
-.history
-target
+# Rust 构建输出
+/target
+**/*.rs.bk
+*.pdb
+
+# Cargo
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.history/
+
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志
+*.log
+
+# 调试
+*.dmp
+
+# 临时文件
+*.tmp
+*.bak
+*.old
+
+# WIL 库文件 (Wemade)
+*.wil
+*.wzl
+*.wzx
+
+# Mir2 数据文件
+*.lib
+*.wtl
+*.mht
+*.mir
+
+# 图像缓存
+*.cache

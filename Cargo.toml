@@ -3,10 +3,23 @@ name = "library_editor"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "library_editor"
+path = "src/main.rs"
+
+[[bin]]
+name = "library_editor_gui"
+path = "src/main_gui.rs"
+required-features = ["gui"]
+
+[features]
+default = ["gui"]
+gui = ["slint", "rfd", "slint-build"]
+
 [dependencies]
 # 图像处理
 image = "0.25"
-png = "0.17"
+png = "0.18"
 
 # 压缩库
 flate2 = "1.0"
@@ -15,7 +28,7 @@ flate2 = "1.0"
 byteorder = "1.5"
 
 # 错误处理
-thiserror = "1.0"
+thiserror = "2.0"
 anyhow = "1.0"
 
 # 序列化
@@ -28,8 +41,10 @@ tracing-subscriber = "0.3"
 # 异步运行时
 tokio = { version = "1.35", features = ["full"] }
 
-# 文件对话框 (GUI 启用时需要)
-# rfd = "0.14"
+# GUI 相关 (仅在 gui feature 启用时编译)
+slint = { version = "1.8", optional = true }
+rfd = { version = "0.17", optional = true }
 
 [build-dependencies]
-# slint-build = "1.8"  # GUI 构建依赖，暂时禁用
+# GUI 构建依赖
+slint-build = { version = "1.8", optional = true }

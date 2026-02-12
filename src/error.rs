@@ -11,6 +11,9 @@ pub enum LibraryError {
     #[error("图片解码错误: {0}")]
     ImageDecode(#[from] image::ImageError),
 
+    #[error("GUI 错误: {0}")]
+    Gui(String),
+
     #[error("压缩/解压缩错误: {0}")]
     Compression(String),
 

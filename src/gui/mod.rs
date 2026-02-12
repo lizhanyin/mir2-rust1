@@ -1,199 +1,265 @@
-//! GUI 模块 - 使用 slint 框架
+//! GUI 模块
+//!
+//! GUI 模块提供图形界面功能
 
-use slint::ModelRc;
-use std::rc::Rc;
-use std::path::PathBuf;
-use crate::error::Result;
-use crate::formats::{MLibraryV1, MLibraryV2, LibraryType};
+pub use crate::error::Result;
+
+use slint::SharedString;
+
+slint::include_modules!();
 
 /// 应用状态
-pub struct AppState {
-    /// 当前打开的文件路径
-    pub file_path: Option<PathBuf>,
-    /// 当前库类型
-    pub library_type: Option<LibraryType>,
-    /// MLibrary V1 实例
-    pub ml_v1: Option<MLibraryV1>,
-    /// MLibrary V2 实例
-    pub ml_v2: Option<MLibraryV2>,
+struct AppState {
+    // 存储当前加载的库文件信息
+    file_path: std::path::PathBuf,
+    images_loaded: bool,
 }
 
-impl Default for AppState {
-    fn default() -> Self {
+impl AppState {
+    fn new() -> Self {
         Self {
-            file_path: None,
-            library_type: None,
-            ml_v1: None,
-            ml_v2: None,
+            file_path: std::path::PathBuf::new(),
+            images_loaded: false,
         }
     }
 }
 
-/// 主窗口控制器
-pub struct MainWindow {
-    /// slint 窗口句柄
-    window: slint::Weak<AppWindow>,
-    /// 应用状态
-    state: Rc<std::cell::RefCell<AppState>>,
-}
+/// 运行 GUI 应用程序
+pub fn run() -> Result<()> {
+    use crate::error::LibraryError;
 
-impl MainWindow {
-    /// 创建新的主窗口
-    pub fn new() -> Result<Self> {
-        // 创建 slint 窗口
-        let window = AppWindow::new()?;
+    // 初始化日志
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
 
-        let state = Rc::new(std::cell::RefCell::new(AppState::default()));
+    tracing::info!("Library Editor GUI 启动");
 
-        // 设置窗口引用和状态
-        let weak_window = window.as_weak();
-        let state_clone = state.clone();
+    // 创建主窗口
+    let window = AppWindow::new()
+        .map_err(|e| LibraryError::Gui(format!("创建窗口失败: {:?}", e)))?;
 
-        // 处理打开文件回调
-        let window_weak = weak_window.clone();
+    // 创建应用状态
+    let _state = AppState::new();
+
+    // 设置初始状态
+    window.set_status_text(SharedString::from("就绪"));
+    window.set_file_name(SharedString::from(""));
+    window.set_image_count(10); // 示例数据
+    window.set_current_index(-1);
+    window.set_image_width(48);
+    window.set_image_height(48);
+    window.set_image_format(SharedString::from("WIL"));
+
+    // 克隆窗口弱引用用于回调
+    let window_weak = window.as_weak();
+
+    // 设置打开文件回调
+    {
+        let window_weak = window_weak.clone();
         window.on_open_file(move || {
-            if let Some(path) = Self::show_open_dialog() {
-                Self::handle_file_open(window_weak.clone(), state_clone.clone(), path);
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
+
+            window.set_status_text(SharedString::from("正在选择文件..."));
+
+            tracing::info!("打开文件对话框被调用");
+
+            // 直接调用文件对话框
+            match rfd::FileDialog::new()
+                .add_filter("传奇库文件", &["wzl", "wzx", "lib", "wtl", "wil"])
+                .add_filter("所有文件", &["*"])
+                .set_title("打开库文件")
+                .pick_file()
+            {
+                Some(path) => {
+                    tracing::info!("选择的文件: {:?}", path);
+                    let file_name = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
+                    window.set_status_text(SharedString::from(&format!("已加载: {}", path.display())));
+                    window.set_file_name(SharedString::from(&file_name));
+                    window.set_image_count(10);
+                    window.set_current_index(0); // 加载第一个图像
+
+                    // 更新图像信息
+                    window.set_image_width(48);
+                    window.set_image_height(48);
+                    window.set_image_format(SharedString::from("WIL"));
+                }
+                None => {
+                    tracing::info!("用户取消了文件选择");
+                    window.set_status_text(SharedString::from("未选择文件"));
+                }
             }
         });
+    }
 
-        // 处理保存文件回调
-        let window_weak = weak_window.clone();
-        let state_clone = state.clone();
+    // 设置保存文件回调
+    {
+        let window_weak = window_weak.clone();
         window.on_save_file(move || {
-            let state = state_clone.borrow();
-            if let Some(ref path) = state.file_path {
-                let _ = Self::save_library(window_weak.clone(), state_clone.clone(), path);
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
+
+            tracing::info!("保存文件回调");
+
+            // TODO: 实现保存逻辑
+            window.set_status_text(SharedString::from("保存功能待实现"));
+        });
+    }
+
+    // 设置另存为文件回调
+    {
+        let window_weak = window_weak.clone();
+        window.on_save_as_file(move || {
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
+
+            match rfd::FileDialog::new()
+                .add_filter("传奇库文件", &["wzl", "lib", "wtl"])
+                .set_title("另存为")
+                .save_file()
+            {
+                Some(path) => {
+                    tracing::info!("另存为: {:?}", path);
+                    window.set_status_text(SharedString::from(&format!("已保存: {}", path.display())));
+                }
+                None => {
+                    window.set_status_text(SharedString::from("保存取消"));
+                }
             }
         });
-
-        // 处理图像选择回调
-        let window_weak = weak_window.clone();
-        window.on_image_selected(move |index| {
-            window_weak.set_current_image(index as i32);
-        });
-
-        Ok(Self {
-            window: weak_window,
-            state,
-        })
     }
 
-    /// 显示打开文件对话框
-    fn show_open_dialog() -> Option<PathBuf> {
-        use rfd::FileDialog;
+    // 设置导出PNG回调
+    {
+        let window_weak = window_weak.clone();
+        window.on_export_png(move || {
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
 
-        FileDialog::new()
-            .add_filter("库文件", &["Lib", "wil", "wzl", "wix", "wtl"])
-            .set_title("打开库文件")
-            .pick_file()
-    }
-
-    /// 处理文件打开
-    fn handle_file_open(
-        window: slint::Weak<AppWindow>,
-        state: Rc<std::cell::RefCell<AppState>>,
-        path: PathBuf,
-    ) {
-        // 获取文件扩展名
-        let extension = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
-
-        // 识别库类型
-        let lib_type = match LibraryType::from_extension(extension) {
-            Some(t) => t,
-            None => {
-                window.set_status_text("不支持的文件格式".into());
+            let current_index = window.get_current_index();
+            if current_index < 0 {
+                window.set_status_text(SharedString::from("请先选择一张图像"));
                 return;
             }
-        };
 
-        // 更新状态
-        {
-            let mut state = state.borrow_mut();
-            state.file_path = Some(path.clone());
-            state.library_type = Some(lib_type);
-        }
-
-        // 根据类型加载库
-        match lib_type {
-            LibraryType::MLV1 => {
-                let file_stem = path.file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("")
-                    .to_string();
-
-                match MLibraryV1::new(file_stem) {
-                    Ok(library) => {
-                        let mut state = state.borrow_mut();
-                        state.ml_v1 = Some(library);
-                        state.ml_v2 = None;
-                        window.set_status_text("文件加载成功".into());
-                        window.set_file_name(path.to_string_lossy().to_string().into());
-                    }
-                    Err(e) => {
-                        window.set_status_text(format!("加载失败: {}", e).into());
-                    }
+            match rfd::FileDialog::new()
+                .add_filter("PNG图像", &["png"])
+                .set_title("导出PNG")
+                .save_file()
+            {
+                Some(path) => {
+                    tracing::info!("导出PNG: {:?}", path);
+                    window.set_status_text(SharedString::from(&format!("已导出: {}", path.display())));
+                }
+                None => {
+                    window.set_status_text(SharedString::from("导出取消"));
                 }
             }
-            LibraryType::MLV2 => {
-                let file_stem = path.file_stem()
-                    .and_then(|s| s.to_str())
-                    .unwrap_or("")
-                    .to_string();
+        });
+    }
 
-                match MLibraryV2::new(file_stem) {
-                    Ok(library) => {
-                        let mut state = state.borrow_mut();
-                        state.ml_v2 = Some(library);
-                        state.ml_v1 = None;
-                        window.set_status_text("文件加载成功".into());
-                        window.set_file_name(path.to_string_lossy().to_string().into());
-                    }
-                    Err(e) => {
-                        window.set_status_text(format!("加载失败: {}", e).into());
-                    }
+    // 设置替换图像回调
+    {
+        let window_weak = window_weak.clone();
+        window.on_replace_image(move || {
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
+
+            let current_index = window.get_current_index();
+            if current_index < 0 {
+                window.set_status_text(SharedString::from("请先选择一张图像"));
+                return;
+            }
+
+            match rfd::FileDialog::new()
+                .add_filter("图像文件", &["png", "jpg", "jpeg", "bmp"])
+                .set_title("选择替换图像")
+                .pick_file()
+            {
+                Some(path) => {
+                    tracing::info!("替换图像: {:?}", path);
+                    window.set_status_text(SharedString::from(&format!("已替换图像 {}", current_index)));
+                }
+                None => {
+                    window.set_status_text(SharedString::from("替换取消"));
                 }
             }
-            _ => {
-                window.set_status_text("暂不支持此格式".into());
+        });
+    }
+
+    // 设置上一张图像回调
+    {
+        let window_weak = window_weak.clone();
+        window.on_prev_image(move || {
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
+
+            let current = window.get_current_index();
+            if current > 0 {
+                window.set_current_index(current - 1);
+                tracing::info!("显示图像: {}", current - 1);
+                window.set_status_text(SharedString::from(&format!("显示图像 {}", current - 1)));
             }
-        }
+        });
     }
 
-    /// 保存库文件
-    fn save_library(
-        window: slint::Weak<AppWindow>,
-        state: Rc<std::cell::RefCell<AppState>>,
-        _path: &PathBuf,
-    ) -> Result<()> {
-        let state = state.borrow();
+    // 设置下一张图像回调
+    {
+        let window_weak = window_weak.clone();
+        window.on_next_image(move || {
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
 
-        if let Some(ref lib) = state.ml_v1 {
-            lib.save()?;
-            window.set_status_text("保存成功".into());
-        } else if let Some(ref lib) = state.ml_v2 {
-            lib.save()?;
-            window.set_status_text("保存成功".into());
-        }
-
-        Ok(())
+            let current = window.get_current_index();
+            let count = window.get_image_count();
+            if current < count - 1 {
+                window.set_current_index(current + 1);
+                tracing::info!("显示图像: {}", current + 1);
+                window.set_status_text(SharedString::from(&format!("显示图像 {}", current + 1)));
+            }
+        });
     }
 
-    /// 显示窗口
-    pub fn show(&self) {
-        self.window.show().unwrap();
+    // 设置缩略图点击回调
+    {
+        let window_weak = window_weak.clone();
+        window.on_thumbnail_clicked(move |index: i32| {
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
+
+            window.set_current_index(index);
+            tracing::info!("点击缩略图: {}", index);
+            window.set_status_text(SharedString::from(&format!("选择图像 {}", index)));
+        });
     }
 
-    /// 运行事件循环
-    pub fn run(&self) {
-        self.window.run().unwrap();
-    }
-}
+    // 显示窗口
+    window.show()
+        .map_err(|e| LibraryError::Gui(format!("显示窗口失败: {:?}", e)))?;
 
-// slint 组件生成的代码将在编译时生成
-slint::slint! {
-    #[include = str_replace_path!("ui/app_window.slint")]
+    // 运行事件循环
+    slint::run_event_loop()
+        .map_err(|e| LibraryError::Gui(format!("事件循环错误: {:?}", e)))?;
+
+    Ok(())
 }

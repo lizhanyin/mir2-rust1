@@ -1,95 +1,574 @@
 // Library Editor 主窗口
+// 新布局：顶部菜单栏 + 中间左右分栏 + 底部缩略图
 
 export component AppWindow inherits Window {
     title: "Library Editor - Rust";
-    width: 800px;
-    height: 600px;
+    width: 1200px;
+    height: 800px;
 
+    // 状态属性
     in-out property <string> status_text: "就绪";
     in-out property <string> file_name: "";
     in-out property <int> image_count: 0;
+    in-out property <int> current_index: -1;
 
+    // 图像信息
+    in-out property <int> image_width: 0;
+    in-out property <int> image_height: 0;
+    in-out property <string> image_format: "-";
+
+    // 回调
     callback open_file();
     callback save_file();
+    callback save_as_file();
+    callback export_png();
+    callback replace_image();
+    callback prev_image();
+    callback next_image();
+    callback thumbnail_clicked(int);
 
-    // 主内容
+    @children
+    // 主容器
     Rectangle {
-        background: #f5f5f5;
+        background: #1e1e1e;
 
         VerticalLayout {
-            padding: 16px;
-            spacing: 8px;
+            spacing: 0px;
 
+            // ========== 顶部菜单栏 ==========
             Rectangle {
-                background: white;
-                border-width: 1px;
-                border-color: #ddd;
-                border-radius: 4px;
+                background: #2d2d2d;
+                height: 28px;
 
-                VerticalLayout {
-                    padding: 12px;
-                    spacing: 8px;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    spacing: 4px;
 
-                    Text {
-                        text: "Library Editor";
-                        font-size: 18px;
-                        font-weight: 700;
-                    }
-
-                    Text {
-                        text: "传奇2库文件编辑器 - Rust版本";
-                        color: #666;
-                    }
-                }
-            }
-
-            Rectangle {
-                background: white;
-                border-width: 1px;
-                border-color: #ddd;
-                border-radius: 4px;
-                height: 80px;
-
-                VerticalLayout {
-                    padding: 12px;
-                    spacing: 8px;
-
-                    Text {
-                        text: "操作";
-                        font-weight: 600;
-                    }
-
-                    HorizontalLayout {
-                        spacing: 8px;
+                    // 文件菜单
+                    Rectangle {
+                        width: 60px;
+                        height: 24px;
 
                         TouchArea {
+                            mouse-cursor: pointer;
                             clicked => { root.open_file(); }
 
                             Rectangle {
-                                background: #007bff;
-                                border-radius: 4px;
+                                background: #2d2d2d;
+                                border-radius: 3px;
 
                                 Text {
-                                    text: "打开文件";
-                                    color: white;
+                                    text: "文件";
+                                    color: #cccccc;
+                                    font-size: 13px;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            // Hover 效果通过 TouchArea 的属性实现
+                        }
+                    }
+
+                    // 编辑菜单
+                    Rectangle {
+                        width: 60px;
+                        height: 24px;
+
+                        Text {
+                            text: "编辑";
+                            color: #cccccc;
+                            font-size: 13px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // 视图菜单
+                    Rectangle {
+                        width: 60px;
+                        height: 24px;
+
+                        Text {
+                            text: "视图";
+                            color: #cccccc;
+                            font-size: 13px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // 帮助菜单
+                    Rectangle {
+                        width: 60px;
+                        height: 24px;
+
+                        Text {
+                            text: "帮助";
+                            color: #cccccc;
+                            font-size: 13px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    // 分隔线
+                    Rectangle {
+                        width: 1px;
+                        background: #444;
+                    }
+
+                    // 快捷工具栏
+                    HorizontalLayout {
+                        spacing: 4px;
+
+                        // 打开按钮
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.open_file(); }
+
+                            Rectangle {
+                                width: 24px;
+                                height: 24px;
+                                background: #2d2d2d;
+
+                                Text {
+                                    text: "📂";
+                                    font-size: 14px;
                                     horizontal-alignment: center;
                                     vertical-alignment: center;
                                 }
                             }
                         }
 
+                        // 保存按钮
                         TouchArea {
+                            mouse-cursor: pointer;
                             clicked => { root.save_file(); }
 
                             Rectangle {
-                                background: #28a745;
-                                border-radius: 4px;
+                                width: 24px;
+                                height: 24px;
+                                background: #2d2d2d;
 
                                 Text {
-                                    text: "保存文件";
-                                    color: white;
+                                    text: "💾";
+                                    font-size: 14px;
                                     horizontal-alignment: center;
                                     vertical-alignment: center;
+                                }
+                            }
+                        }
+
+                        // 导出PNG按钮
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.export_png(); }
+
+                            Rectangle {
+                                width: 24px;
+                                height: 24px;
+                                background: #2d2d2d;
+
+                                Text {
+                                    text: "📤";
+                                    font-size: 14px;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+
+                    // 右侧弹性空间
+                    Rectangle {}
+                }
+            }
+
+            // ========== 中间区域：左右分栏 ==========
+            Rectangle {
+                background: #1e1e1e;
+                min-height: 400px;
+
+                HorizontalLayout {
+                    spacing: 0px;
+
+                    // ========== 左侧：属性操作面板 ==========
+                    Rectangle {
+                        background: #252526;
+                        width: 280px;
+
+                        VerticalLayout {
+                            spacing: 0px;
+
+                            // 面板标题
+                            Rectangle {
+                                background: #2d2d2d;
+                                height: 32px;
+
+                                Text {
+                                    text: "属性与操作";
+                                    color: #cccccc;
+                                    font-size: 13px;
+                                    font-weight: 600;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            // 内容区域
+                            Rectangle {
+                                VerticalLayout {
+                                    padding: 16px;
+                                    spacing: 16px;
+
+                                    // === 文件信息组 ===
+                                    VerticalLayout {
+                                        spacing: 8px;
+
+                                        Text {
+                                            text: "文件信息";
+                                            color: #858585;
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                        }
+
+                                        VerticalLayout {
+                                            spacing: 6px;
+                                            padding-left: 8px;
+
+                                            Text {
+                                                text: "文件名:";
+                                                color: #858585;
+                                                font-size: 12px;
+                                            }
+
+                                            Text {
+                                                text: root.file_name == "" ? "未加载" : root.file_name;
+                                                color: #cccccc;
+                                                font-size: 12px;
+                                                overflow: elide;
+                                            }
+
+                                            Text {
+                                                text: "图像总数: " + root.image_count;
+                                                color: #cccccc;
+                                                font-size: 12px;
+                                            }
+                                        }
+                                    }
+
+                                    // 分隔线
+                                    Rectangle {
+                                        height: 1px;
+                                        background: #3e3e42;
+                                    }
+
+                                    // === 当前图像信息 ===
+                                    VerticalLayout {
+                                        spacing: 8px;
+
+                                        Text {
+                                            text: "当前图像";
+                                            color: #858585;
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                        }
+
+                                        VerticalLayout {
+                                            spacing: 6px;
+                                            padding-left: 8px;
+
+                                            HorizontalLayout {
+                                                spacing: 8px;
+
+                                                Text {
+                                                    text: "索引:";
+                                                    color: #858585;
+                                                    font-size: 12px;
+                                                    width: 50px;
+                                                }
+
+                                                Text {
+                                                    text: root.current_index >= 0 ? root.current_index : "-";
+                                                    color: #cccccc;
+                                                    font-size: 12px;
+                                                }
+                                            }
+
+                                            HorizontalLayout {
+                                                spacing: 8px;
+
+                                                Text {
+                                                    text: "宽度:";
+                                                    color: #858585;
+                                                    font-size: 12px;
+                                                    width: 50px;
+                                                }
+
+                                                Text {
+                                                    text: root.current_index >= 0 ? root.image_width : "-";
+                                                    color: #cccccc;
+                                                    font-size: 12px;
+                                                }
+                                            }
+
+                                            HorizontalLayout {
+                                                spacing: 8px;
+
+                                                Text {
+                                                    text: "高度:";
+                                                    color: #858585;
+                                                    font-size: 12px;
+                                                    width: 50px;
+                                                }
+
+                                                Text {
+                                                    text: root.current_index >= 0 ? root.image_height : "-";
+                                                    color: #cccccc;
+                                                    font-size: 12px;
+                                                }
+                                            }
+
+                                            HorizontalLayout {
+                                                spacing: 8px;
+
+                                                Text {
+                                                    text: "格式:";
+                                                    color: #858585;
+                                                    font-size: 12px;
+                                                    width: 50px;
+                                                }
+
+                                                Text {
+                                                    text: root.current_index >= 0 ? root.image_format : "-";
+                                                    color: #cccccc;
+                                                    font-size: 12px;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // 分隔线
+                                    Rectangle {
+                                        height: 1px;
+                                        background: #3e3e42;
+                                    }
+
+                                    // === 调色板信息 ===
+                                    VerticalLayout {
+                                        spacing: 8px;
+
+                                        Text {
+                                            text: "调色板";
+                                            color: #858585;
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                        }
+
+                                        VerticalLayout {
+                                            spacing: 6px;
+                                            padding-left: 8px;
+
+                                            Text {
+                                                text: "256 色";
+                                                color: #cccccc;
+                                                font-size: 12px;
+                                            }
+
+                                            Text {
+                                                text: "ARGB 8888";
+                                                color: #cccccc;
+                                                font-size: 12px;
+                                            }
+                                        }
+                                    }
+
+                                    // 分隔线
+                                    Rectangle {
+                                        height: 1px;
+                                        background: #3e3e42;
+                                    }
+
+                                    // === 操作按钮 ===
+                                    VerticalLayout {
+                                        spacing: 8px;
+
+                                        Text {
+                                            text: "操作";
+                                            color: #858585;
+                                            font-size: 11px;
+                                            font-weight: 600;
+                                        }
+
+                                        VerticalLayout {
+                                            spacing: 8px;
+
+                                            // 导出PNG按钮
+                                            TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => { root.export_png(); }
+
+                                                Rectangle {
+                                                    background: #0e639c;
+                                                    border-radius: 4px;
+                                                    height: 32px;
+
+                                                    Text {
+                                                        text: "导出 PNG";
+                                                        color: #ffffff;
+                                                        horizontal-alignment: center;
+                                                        vertical-alignment: center;
+                                                        font-size: 13px;
+                                                        font-weight: 500;
+                                                    }
+                                                }
+                                            }
+
+                                            // 替换图像按钮
+                                            TouchArea {
+                                                mouse-cursor: pointer;
+                                                clicked => { root.replace_image(); }
+
+                                                Rectangle {
+                                                    background: #3e3e42;
+                                                    border-radius: 4px;
+                                                    height: 32px;
+
+                                                    Text {
+                                                        text: "替换图像";
+                                                        color: #cccccc;
+                                                        horizontal-alignment: center;
+                                                        vertical-alignment: center;
+                                                        font-size: 13px;
+                                                    }
+                                                }
+                                            }
+
+                                            // 导航按钮
+                                            HorizontalLayout {
+                                                spacing: 8px;
+
+                                                TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => { root.prev_image(); }
+
+                                                    Rectangle {
+                                                        background: root.current_index > 0 ? #0e639c : #3e3e42;
+                                                        border-radius: 4px;
+                                                        height: 32px;
+                                                        width: 100px;
+
+                                                        Text {
+                                                            text: "上一张";
+                                                            color: #ffffff;
+                                                            horizontal-alignment: center;
+                                                            vertical-alignment: center;
+                                                            font-size: 13px;
+                                                        }
+                                                    }
+                                                }
+
+                                                TouchArea {
+                                                    mouse-cursor: pointer;
+                                                    clicked => { root.next_image(); }
+
+                                                    Rectangle {
+                                                        background: root.current_index < root.image_count - 1 ? #0e639c : #3e3e42;
+                                                        border-radius: 4px;
+                                                        height: 32px;
+                                                        width: 100px;
+
+                                                        Text {
+                                                            text: "下一张";
+                                                            color: #ffffff;
+                                                            horizontal-alignment: center;
+                                                            vertical-alignment: center;
+                                                            font-size: 13px;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ========== 右侧：主预览区域 ==========
+                    Rectangle {
+                        background: #1e1e1e;
+
+                        VerticalLayout {
+                            spacing: 0px;
+
+                            // 预览区标题栏
+                            Rectangle {
+                                background: #2d2d2d;
+                                height: 32px;
+
+                                HorizontalLayout {
+                                    padding: 12px;
+
+                                    Text {
+                                        text: "预览";
+                                        color: #cccccc;
+                                        font-size: 13px;
+                                        font-weight: 600;
+                                        vertical-alignment: center;
+                                    }
+
+                                    Rectangle {}
+
+                                    Text {
+                                        text: root.current_index >= 0 ? "图像 " + root.current_index + " / " + (root.image_count - 1) : "";
+                                        color: #858585;
+                                        font-size: 12px;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // 预览画布
+                            Rectangle {
+                                background: #0c0c0c;
+
+                                HorizontalLayout {
+                                    alignment: center;
+
+                                    Rectangle {
+                                        width: 400px;
+                                        height: 400px;
+                                        background: #1e1e1e;
+                                        border-width: 1px;
+                                        border-color: #3e3e42;
+
+                                        // 显示图像或占位符
+                                        if root.current_index >= 0 : Rectangle {
+                                            background: #4ec9b0;
+
+                                            Text {
+                                                text: "预览区域\n" + "图像 " + root.current_index;
+                                                color: white;
+                                                horizontal-alignment: center;
+                                                vertical-alignment: center;
+                                                font-size: 16px;
+                                            }
+                                        }
+
+                                        if root.current_index < 0 : Rectangle {
+                                            background: transparent;
+
+                                            Text {
+                                                text: "请选择一张图像";
+                                                color: #666;
+                                                horizontal-alignment: center;
+                                                vertical-alignment: center;
+                                                font-size: 14px;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -97,69 +576,144 @@ export component AppWindow inherits Window {
                 }
             }
 
+            // ========== 底部：缩略图列表 ==========
             Rectangle {
-                background: white;
-                border-width: 1px;
-                border-color: #ddd;
-                border-radius: 4px;
+                background: #252526;
+                height: 140px;
 
                 VerticalLayout {
-                    padding: 12px;
-                    spacing: 4px;
+                    spacing: 0px;
 
-                    Text {
-                        text: "支持格式";
-                        font-weight: 600;
+                    // 缩略图标题栏
+                    Rectangle {
+                        background: #2d2d2d;
+                        height: 28px;
+
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            padding-top: 8px;
+                            padding-bottom: 8px;
+
+                            Text {
+                                text: "缩略图";
+                                color: #cccccc;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                            }
+
+                            Rectangle {}
+
+                            Text {
+                                text: root.image_count + " 张图像";
+                                color: #858585;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                            }
+                        }
                     }
 
-                    Text {
-                        text: "• MLibrary V1 (.wzl/.wzx)";
-                        color: #666;
-                        font-size: 12px;
-                    }
+                    // 缩略图滚动区域
+                    Rectangle {
+                        background: #1e1e1e;
 
-                    Text {
-                        text: "• MLibrary V2 (.Lib)";
-                        color: #666;
-                        font-size: 12px;
-                    }
+                        HorizontalLayout {
+                            padding: 8px;
+                            spacing: 4px;
+                            alignment: center;
 
-                    Text {
-                        text: "• WeMade Library (.wil/.wix)";
-                        color: #666;
-                        font-size: 12px;
-                    }
+                            // 缩略图列表
+                            for i in root.image_count : Rectangle {
+                                width: 80px;
+                                height: 80px;
+                                background: i == root.current_index ? #37373d : #2d2d2d;
+                                border-width: i == root.current_index ? 2px : 1px;
+                                border-color: i == root.current_index ? #007acc : #3e3e42;
+                                border-radius: 4px;
 
-                    Text {
-                        text: "• WTL Library (.wtl)";
-                        color: #666;
-                        font-size: 12px;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.thumbnail_clicked(i); }
+                                }
+
+                                VerticalLayout {
+                                    spacing: 4px;
+                                    padding: 4px;
+
+                                    // 缩略图预览
+                                    Rectangle {
+                                        width: 48px;
+                                        height: 48px;
+                                        background: #4ec9b0;
+                                        border-radius: 2px;
+
+                                        HorizontalLayout {
+                                            alignment: center;
+
+                                            Text {
+                                                text: i;
+                                                color: white;
+                                                font-size: 14px;
+                                                font-weight: 600;
+                                            }
+                                        }
+                                    }
+
+                                    // 缩略图索引
+                                    Text {
+                                        text: "#" + i;
+                                        color: #cccccc;
+                                        font-size: 11px;
+                                        horizontal-alignment: center;
+                                    }
+                                }
+                            }
+
+                            // 空状态
+                            if root.image_count == 0 : Rectangle {
+                                width: 100%;
+                                height: 100%;
+
+                                Text {
+                                    text: "暂无图像";
+                                    color: #666;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                    font-size: 13px;
+                                }
+                            }
+                        }
                     }
                 }
             }
 
+            // ========== 底部状态栏 ==========
             Rectangle {
-                background: white;
-                border-width: 1px;
-                border-color: #ddd;
-                border-radius: 4px;
+                background: #007acc;
+                height: 22px;
 
-                VerticalLayout {
-                    padding: 12px;
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    padding-top: 6px;
+                    padding-bottom: 6px;
 
                     Text {
-                        text: "状态: " + root.status_text;
-                        color: #666;
+                        text: root.status_text;
+                        color: #ffffff;
+                        font-size: 11px;
+                        vertical-alignment: center;
                     }
 
-                    Text {
-                        text: "当前文件: " + root.file_name;
-                        color: #666;
-                    }
+                    Rectangle {}
 
                     Text {
-                        text: "图像总数: " + root.image_count;
-                        color: #666;
+                        text: "Library Editor v1.0";
+                        color: #ffffff;
+                        font-size: 10px;
+                        opacity: 0.7;
+                        vertical-alignment: center;
                     }
                 }
             }

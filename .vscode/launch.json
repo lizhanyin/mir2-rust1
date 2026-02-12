@@ -4,24 +4,44 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'library_editor'",
+            "name": "Debug CLI (--no-gui)",
             "cargo": {
-                "args": [
-                    "build",
-                    "--bin=library_editor",
-                    "--package=library_editor"
-                ],
-                "filter": {
-                    "name": "library_editor",
-                    "kind": "bin"
-                }
+                "args": ["build", "--bin=library_editor"],
+                "filter": { "name": "library_editor", "kind": "bin" }
+            },
+            "cwd": "${workspaceFolder}",
+            "args": ["--no-gui"],
+            "env": {
+                "RUST_BACKTRACE": "1"
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug GUI (默认)",
+            "cargo": {
+                "args": ["build", "--bin=library_editor"],
+                "filter": { "name": "library_editor", "kind": "bin" }
             },
             "cwd": "${workspaceFolder}",
             "args": [],
             "env": {
                 "RUST_BACKTRACE": "1"
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug GUI (library_editor_gui)",
+            "cargo": {
+                "args": ["build", "--bin=library_editor_gui", "--features=gui"],
+                "filter": { "name": "library_editor_gui", "kind": "bin" }
             },
-            "preLaunchTask": "cargo build"
+            "cwd": "${workspaceFolder}",
+            "args": [],
+            "env": {
+                "RUST_BACKTRACE": "1"
+            }
         },
         {
             "type": "lldb",
@@ -41,31 +61,6 @@
             },
             "cwd": "${workspaceFolder}",
             "args": [],
-            "env": {
-                "RUST_BACKTRACE": "1"
-            },
-            "preLaunchTask": "cargo test --no-run"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug specific test",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=library_editor",
-                    "--package=library_editor",
-                    "--",
-                    "${selectedTest}"
-                ],
-                "filter": {
-                    "name": "library_editor",
-                    "kind": "bin"
-                }
-            },
-            "cwd": "${workspaceFolder}",
-            "args": ["--", "${selectedTest}"],
             "env": {
                 "RUST_BACKTRACE": "1"
             }
