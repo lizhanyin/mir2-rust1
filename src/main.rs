@@ -12,14 +12,13 @@
 #![allow(dead_code)]
 
 mod error;
-mod image;
 mod formats;
 #[cfg(feature = "gui")]
 mod gui;
+mod image;
 
 use error::Result;
-use tracing::{info, Level};
-use tracing_subscriber;
+use tracing::{Level, info};
 
 fn main() -> Result<()> {
     // 解析命令行参数
@@ -48,9 +47,7 @@ fn main() -> Result<()> {
 /// 运行 CLI 模式
 fn run_cli(args: Vec<String>) -> Result<()> {
     // 初始化日志
-    tracing_subscriber::fmt()
-        .with_max_level(Level::INFO)
-        .init();
+    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
 
     info!("Library Editor CLI 模式启动中...");
     info!("支持格式: MLibrary V1/V2, WeMade, WTL");
@@ -74,7 +71,8 @@ fn run_cli(args: Vec<String>) -> Result<()> {
 
     // 显示传入的文件参数
     if args.len() > 1 {
-        let file_args: Vec<_> = args.iter()
+        let file_args: Vec<_> = args
+            .iter()
             .filter(|a| !a.starts_with("--") && !a.starts_with('-'))
             .collect();
 

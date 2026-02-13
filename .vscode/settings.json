@@ -1,15 +1,14 @@
 {
     // Rust 分析器设置
-    "rust-analyzer.checkOnSave.command": "clippy",
+    "rust-analyzer.check.command": "clippy",
     "rust-analyzer.cargo.features": "all",
     "rust-analyzer.cargo.loadOutDirsFromCheck": true,
     "rust-analyzer.procMacro.enable": true,
 
     // 格式化设置
-    "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
+    // "rust-analyzer.rustfmt.extraArgs": ["+nightly"],
 
     // 调试设置
-    "lldb.library": "duplicate",
     "lldb.diagnostics": "verbose",
     "lldb.displayFormat": "auto",
 
@@ -52,10 +51,13 @@
     // 补全设置
     "rust-analyzer.completion.autoimport.enable": true,
     "rust-analyzer.completion.autoself.enable": true,
-    "rust-analyzer.completion.callable.snippets": "add",
+    "rust-analyzer.completion.callable.snippets": "fill_arguments",
 
     // 语义高亮
     "rust-analyzer.semanticHighlighting.string.enable": true,
     "rust-analyzer.semanticHighlighting.operator.enable": true,
-    "rust-analyzer.semanticHighlighting.typeHints.enable": true
+    "rust-analyzer.semanticHighlighting.typeHints.enable": true,
+    "cSpell.words": [
+        "mimage"
+    ]
 }

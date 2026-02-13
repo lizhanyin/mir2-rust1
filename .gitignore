@@ -13,6 +13,7 @@ Cargo.lock
 *.swo
 *~
 .history/
+.spec-workflow
 
 # 操作系统
 .DS_Store
@@ -43,3 +44,6 @@ desktop.ini
 
 # 图像缓存
 *.cache
+
+data
+!data.7z

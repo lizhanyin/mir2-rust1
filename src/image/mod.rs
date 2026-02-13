@@ -5,9 +5,9 @@ pub mod palette;
 pub mod palette_data;
 pub mod compression;
 
-pub use bitmap::{MImage};
+// 重新导出 MImage（已移至 formats::mlibrary_v1）
+pub use crate::formats::MImage;
 pub use palette::{Color, DEFAULT_PALETTE};
-pub use compression::{decompress_gzip};
 
 /// 16位颜色转32位颜色
 pub fn convert_16bit_to_32bit(color: u16) -> u32 {

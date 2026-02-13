@@ -1,15 +1,16 @@
 //! 库文件格式解析模块
 
+pub mod mlibrary_v0;
 pub mod mlibrary_v1;
 pub mod mlibrary_v2;
-pub mod mlibrary_v0;
 pub mod wemade_library;
 pub mod wtl_library;
 
 pub use mlibrary_v2::MLibraryV2;
+pub use mlibrary_v1::MImage;
 
-use crate::error::{Result, LibraryError};
-use crate::image::MImage;
+use crate::error::{LibraryError, Result};
+use crate::formats::mlibrary_v1::MLibraryV1;
 use std::path::Path;
 
 /// 库文件类型枚举
@@ -88,7 +89,12 @@ pub struct LibraryInfo {
 
 impl LibraryInfo {
     /// 创建新的库信息
-    pub fn new(base_path: String, file_name: String, library_type: LibraryType, image_count: usize) -> Self {
+    pub fn new(
+        base_path: String,
+        file_name: String,
+        library_type: LibraryType,
+        image_count: usize,
+    ) -> Self {
         Self {
             base_path,
             file_name,
@@ -105,6 +111,8 @@ impl LibraryInfo {
 }
 
 /// 图像信息（用于GUI显示）
+/// 注意：由于每个版本有独立的 MImage 结构，这个通用结构已弃用
+/// 请使用各版本特定的 MImage 结构
 #[derive(Debug, Clone)]
 pub struct ImageInfo {
     /// 索引
@@ -125,13 +133,23 @@ pub struct ImageInfo {
 #[derive(Debug, Clone)]
 pub enum ShadowInfo {
     None,
-    Simple { shadow: u8, shadow_x: i16, shadow_y: i16 },
-    Mask { shadow: u8, shadow_x: i16, shadow_y: i16, mask_width: i16, mask_height: i16 },
+    Simple {
+        shadow: u8,
+        shadow_x: i16,
+        shadow_y: i16,
+    },
+    Mask {
+        shadow: u8,
+        shadow_x: i16,
+        shadow_y: i16,
+        mask_width: i16,
+        mask_height: i16,
+    },
 }
 
 impl ImageInfo {
-    /// 从 MImage 创建图像信息
-    pub fn from_image(index: usize, image: &MImage) -> Self {
+    /// 从 MLibraryV2::MImage 创建图像信息
+    pub fn from_v2_image(index: usize, image: &mlibrary_v2::MImage) -> Self {
         let shadow_info = if image.has_mask {
             ShadowInfo::Mask {
                 shadow: image.shadow,
@@ -168,7 +186,8 @@ impl ImageInfo {
 pub struct LibraryLoader {
     /// 库信息
     info: Option<LibraryInfo>,
-    /// MLibrary V2 实例（当前只支持V2）
+    library_v1: Option<MLibraryV1>,
+    /// MLibrary V2 实例
     library_v2: Option<MLibraryV2>,
 }
 
@@ -177,6 +196,7 @@ impl LibraryLoader {
     pub fn new() -> Self {
         Self {
             info: None,
+            library_v1: None,
             library_v2: None,
         }
     }
@@ -187,16 +207,13 @@ impl LibraryLoader {
         tracing::debug!("文件存在: {}", path.exists());
 
         // 获取文件扩展名
-        let extension = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         tracing::debug!("文件扩展名: {}", extension);
 
         // 识别库类型
-        let lib_type = LibraryType::from_extension(&format!(".{}", extension))
-            .ok_or_else(|| {
+        let lib_type =
+            LibraryType::from_extension(&format!(".{}", extension)).ok_or_else(|| {
                 tracing::error!("不支持的文件格式: {}", extension);
                 LibraryError::InvalidFormat
             })?;
@@ -214,9 +231,30 @@ impl LibraryLoader {
 
         // 根据类型加载
         match lib_type {
+            LibraryType::MLV1 => {
+                tracing::info!("使用 MLibrary V1 加载器");
+                let library = MLibraryV1::new(base_path.clone())?;
+                let count = library.count();
+
+                tracing::info!("成功加载 {count} 张图像");
+
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let info = LibraryInfo::new(base_path, file_name, lib_type, count);
+
+                let mut loader = Self::new();
+                loader.info = Some(info.clone());
+                loader.library_v1 = Some(library);
+
+                Ok((info, loader))
+            }
             LibraryType::MLV2 => {
                 tracing::info!("使用 MLibrary V2 加载器");
-                let mut library = MLibraryV2::new(base_path.clone())?;
+                let library = MLibraryV2::new(base_path.clone())?;
                 let count = library.count();
 
                 tracing::info!("成功加载 {} 张图像", count);
@@ -253,7 +291,7 @@ impl LibraryLoader {
 
         if let Some(ref mut lib) = self.library_v2 {
             let image = lib.get_image(index)?;
-            let info = ImageInfo::from_image(index, image);
+            let info = ImageInfo::from_v2_image(index, image);
             tracing::debug!("图像信息: {}x{}", info.width, info.height);
             Ok(info)
         } else {
@@ -266,7 +304,8 @@ impl LibraryLoader {
         tracing::debug!("获取图像预览: index={}", index);
 
         if let Some(ref mut lib) = self.library_v2 {
-            lib.get_preview(index)
+            let preview = lib.get_preview(index)?.map(|img| img.clone());
+            Ok(preview)
         } else {
             Err(LibraryError::ParseError("库未加载".to_string()))
         }
@@ -274,10 +313,7 @@ impl LibraryLoader {
 
     /// 获取图像数量
     pub fn image_count(&self) -> usize {
-        self.info
-            .as_ref()
-            .map(|i| i.image_count)
-            .unwrap_or(0)
+        self.info.as_ref().map(|i| i.image_count).unwrap_or(0)
     }
 
     /// 保存库
@@ -294,7 +330,11 @@ impl LibraryLoader {
     }
 
     /// 替换图像
-    pub fn replace_image(&mut self, index: usize, image: &MImage) -> Result<()> {
+    pub fn replace_image(
+        &mut self,
+        index: usize,
+        image: &crate::formats::mlibrary_v2::MImage,
+    ) -> Result<()> {
         tracing::info!("替换图像: index={}", index);
 
         if let Some(ref mut lib) = self.library_v2 {
@@ -307,7 +347,7 @@ impl LibraryLoader {
     }
 
     /// 添加图像
-    pub fn add_image(&mut self, image: &MImage) -> Result<()> {
+    pub fn add_image(&mut self, image: &crate::formats::mlibrary_v2::MImage) -> Result<()> {
         tracing::info!("添加新图像");
 
         if let Some(ref mut lib) = self.library_v2 {

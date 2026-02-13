@@ -1,12 +1,13 @@
 //! WeMade Library 格式解析
 //! 用于处理传奇2的 WeMade 格式库文件
 
-use crate::error::{Result, LibraryError};
-use crate::image::{MImage, Color};
+use crate::error::{LibraryError, Result};
+use crate::image::Color;
+use crate::formats::mlibrary_v2::MImage;
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
-use byteorder::{LittleEndian, ReadBytesExt};
 
 /// WeMadLibrary - 用于处理 .wil/.wix 文件
 pub struct WeMadeLibrary {
@@ -79,8 +80,20 @@ impl WeMadeLibrary {
     pub fn initialize(&mut self) -> Result<()> {
         self.initialized = true;
 
-        let main_ext = if self.n_type == 1 { ".wzl" } else if self.n_type == 4 { ".miz" } else { ".wil" };
-        let index_ext = if self.n_type == 1 { ".wzx" } else if self.n_type == 4 { ".mix" } else { ".wix" };
+        let main_ext = if self.n_type == 1 {
+            ".wzl"
+        } else if self.n_type == 4 {
+            ".miz"
+        } else {
+            ".wil"
+        };
+        let index_ext = if self.n_type == 1 {
+            ".wzx"
+        } else if self.n_type == 4 {
+            ".mix"
+        } else {
+            ".wix"
+        };
 
         let main_path = format!("{}{}", self.file_name, main_ext);
         let index_path = format!("{}{}", self.file_name, index_ext);
@@ -165,7 +178,13 @@ impl WeMadeLibrary {
 
     /// 加载指定索引的图像
     fn load_image(&mut self, index: usize) -> Result<()> {
-        let main_ext = if self.n_type == 1 { ".wzl" } else if self.n_type == 4 { ".miz" } else { ".wil" };
+        let main_ext = if self.n_type == 1 {
+            ".wzl"
+        } else if self.n_type == 4 {
+            ".miz"
+        } else {
+            ".wil"
+        };
         let main_path = format!("{}{}", self.file_name, main_ext);
 
         let file = File::open(&main_path)?;

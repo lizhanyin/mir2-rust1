@@ -217,21 +217,6 @@ export component AppWindow inherits Window {
                         VerticalLayout {
                             spacing: 0px;
 
-                            // 面板标题
-                            Rectangle {
-                                background: #2d2d2d;
-                                height: 32px;
-
-                                Text {
-                                    text: "属性与操作";
-                                    color: #cccccc;
-                                    font-size: 13px;
-                                    font-weight: 600;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                }
-                            }
-
                             // 内容区域
                             Rectangle {
                                 VerticalLayout {
@@ -453,33 +438,6 @@ export component AppWindow inherits Window {
 
                         VerticalLayout {
                             spacing: 0px;
-
-                            // 预览区标题栏
-                            Rectangle {
-                                background: #2d2d2d;
-                                height: 32px;
-
-                                HorizontalLayout {
-                                    padding: 12px;
-
-                                    Text {
-                                        text: "预览";
-                                        color: #cccccc;
-                                        font-size: 13px;
-                                        font-weight: 600;
-                                        vertical-alignment: center;
-                                    }
-
-                                    Rectangle {}
-
-                                    Text {
-                                        text: root.current_index >= 0 ? "图像 " + root.current_index + " / " + (root.image_count - 1) : "";
-                                        color: #858585;
-                                        font-size: 12px;
-                                        vertical-alignment: center;
-                                    }
-                                }
-                            }
 
                             // 预览画布
                             Rectangle {
