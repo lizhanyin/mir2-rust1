@@ -291,6 +291,17 @@ impl MLibraryV1 {
             .ok_or_else(|| LibraryError::IndexOutOfBounds(index))
     }
 
+    /// 获取预览图
+    pub fn get_preview(&mut self, index: usize) -> Result<Option<&RgbaImage>> {
+        self.check_image(index)?;
+
+        if let Some(ref img) = self.images[index] {
+            Ok(img.image.as_ref())
+        } else {
+            Ok(None)
+        }
+    }
+
     /// 添加新图像
     pub fn add_image(&mut self, image: &MImage) {
         self.images.push(Some(image.clone()));

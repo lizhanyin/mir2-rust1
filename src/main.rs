@@ -19,6 +19,8 @@ mod image;
 
 use error::Result;
 use tracing::{Level, info};
+use tracing_appender::rolling;
+use tracing_subscriber::{Registry, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> Result<()> {
     // 解析命令行参数
@@ -44,10 +46,46 @@ fn main() -> Result<()> {
     run_cli(args)
 }
 
+/// 初始化日志系统 - 同时输出到控制台和文件
+fn init_logging() {
+    // 创建日志文件目录（在当前目录下的 logs 文件夹）
+    let file_appender = rolling::daily("./logs", "library-editor.log");
+
+    // 根据编译配置选择日志级别
+    #[cfg(debug_assertions)]
+    let log_level = Level::DEBUG;
+    #[cfg(not(debug_assertions))]
+    let log_level = Level::INFO;
+
+    // 配置日志输出层
+    let file_layer = fmt::layer()
+        .with_writer(file_appender)
+        .with_ansi(false)
+        .with_level(true)
+        .with_target(true);
+
+    let console_layer = fmt::layer()
+        .with_writer(std::io::stdout)
+        .with_ansi(true)
+        .with_level(true)
+        .with_target(false);
+
+    // 组合订阅器，同时输出到控制台和文件
+    Registry::default()
+        .with(file_layer)
+        .with(console_layer)
+        .with(
+            tracing_subscriber::filter::Targets::new()
+                .with_target("library_editor", log_level)
+                .with_default(log_level),
+        )
+        .init();
+}
+
 /// 运行 CLI 模式
 fn run_cli(args: Vec<String>) -> Result<()> {
-    // 初始化日志
-    tracing_subscriber::fmt().with_max_level(Level::INFO).init();
+    // 初始化日志 - 同时输出到控制台和文件
+    init_logging();
 
     info!("Library Editor CLI 模式启动中...");
     info!("支持格式: MLibrary V1/V2, WeMade, WTL");

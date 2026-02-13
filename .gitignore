@@ -30,6 +30,7 @@ desktop.ini
 *.tmp
 *.bak
 *.old
+logs/*
 
 # WIL 库文件 (Wemade)
 *.wil

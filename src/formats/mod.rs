@@ -6,8 +6,8 @@ pub mod mlibrary_v2;
 pub mod wemade_library;
 pub mod wtl_library;
 
-pub use mlibrary_v2::MLibraryV2;
 pub use mlibrary_v1::MImage;
+pub use mlibrary_v2::MLibraryV2;
 
 use crate::error::{LibraryError, Result};
 use crate::formats::mlibrary_v1::MLibraryV1;
@@ -203,7 +203,7 @@ impl LibraryLoader {
 
     /// 从文件路径加载库
     pub fn load(path: &Path) -> Result<(LibraryInfo, Self)> {
-        tracing::info!("开始加载库文件: {:?}", path);
+        tracing::debug!("开始加载库文件: {:?}", path);
         tracing::debug!("文件存在: {}", path.exists());
 
         // 获取文件扩展名
@@ -218,7 +218,7 @@ impl LibraryLoader {
                 LibraryError::InvalidFormat
             })?;
 
-        tracing::info!("识别为格式: {}", lib_type.name());
+        tracing::debug!("识别为格式: {}", lib_type.name());
 
         // 获取基础路径（去掉扩展名）
         let base_path = path
@@ -232,11 +232,11 @@ impl LibraryLoader {
         // 根据类型加载
         match lib_type {
             LibraryType::MLV1 => {
-                tracing::info!("使用 MLibrary V1 加载器");
+                tracing::debug!("使用 MLibrary V1 加载器");
                 let library = MLibraryV1::new(base_path.clone())?;
                 let count = library.count();
 
-                tracing::info!("成功加载 {count} 张图像");
+                tracing::debug!("成功加载 {count} 张图像");
 
                 let file_name = path
                     .file_name()
@@ -253,11 +253,11 @@ impl LibraryLoader {
                 Ok((info, loader))
             }
             LibraryType::MLV2 => {
-                tracing::info!("使用 MLibrary V2 加载器");
+                tracing::debug!("使用 MLibrary V2 加载器");
                 let library = MLibraryV2::new(base_path.clone())?;
                 let count = library.count();
 
-                tracing::info!("成功加载 {} 张图像", count);
+                tracing::debug!("成功加载 {} 张图像", count);
 
                 let file_name = path
                     .file_name()
@@ -295,7 +295,9 @@ impl LibraryLoader {
             tracing::debug!("图像信息: {}x{}", info.width, info.height);
             Ok(info)
         } else {
-            Err(LibraryError::ParseError("库未加载".to_string()))
+            Err(LibraryError::ParseError(
+                "获取图像信息时异常：库未加载".to_string(),
+            ))
         }
     }
 
@@ -303,12 +305,21 @@ impl LibraryLoader {
     pub fn get_preview(&mut self, index: usize) -> Result<Option<image::RgbaImage>> {
         tracing::debug!("获取图像预览: index={}", index);
 
+        // 优先从 V2 获取
         if let Some(ref mut lib) = self.library_v2 {
-            let preview = lib.get_preview(index)?.map(|img| img.clone());
-            Ok(preview)
-        } else {
-            Err(LibraryError::ParseError("库未加载".to_string()))
+            let preview = lib.get_preview(index)?.cloned();
+            return Ok(preview);
         }
+
+        // 从 V1 获取
+        if let Some(ref mut lib) = self.library_v1 {
+            let preview = lib.get_preview(index)?.cloned();
+            return Ok(preview);
+        }
+
+        Err(LibraryError::ParseError(
+            "获取图像预览时异常：库未加载".to_string(),
+        ))
     }
 
     /// 获取图像数量
@@ -318,14 +329,16 @@ impl LibraryLoader {
 
     /// 保存库
     pub fn save(&self) -> Result<()> {
-        tracing::info!("保存库文件");
+        tracing::debug!("保存库文件");
 
         if let Some(ref lib) = self.library_v2 {
             lib.save()?;
-            tracing::info!("保存成功");
+            tracing::debug!("保存成功");
             Ok(())
         } else {
-            Err(LibraryError::ParseError("库未加载".to_string()))
+            Err(LibraryError::ParseError(
+                "保存库文件时异常：库未加载".to_string(),
+            ))
         }
     }
 
@@ -335,59 +348,67 @@ impl LibraryLoader {
         index: usize,
         image: &crate::formats::mlibrary_v2::MImage,
     ) -> Result<()> {
-        tracing::info!("替换图像: index={}", index);
+        tracing::debug!("替换图像: index={}", index);
 
         if let Some(ref mut lib) = self.library_v2 {
             lib.replace_image(index, image)?;
-            tracing::info!("替换成功");
+            tracing::debug!("替换成功");
             Ok(())
         } else {
-            Err(LibraryError::ParseError("库未加载".to_string()))
+            Err(LibraryError::ParseError(
+                "替换图像时异常：库未加载".to_string(),
+            ))
         }
     }
 
     /// 添加图像
     pub fn add_image(&mut self, image: &crate::formats::mlibrary_v2::MImage) -> Result<()> {
-        tracing::info!("添加新图像");
+        tracing::debug!("添加新图像");
 
         if let Some(ref mut lib) = self.library_v2 {
             lib.add_image(image);
-            tracing::info!("添加成功");
+            tracing::debug!("添加成功");
             Ok(())
         } else {
-            Err(LibraryError::ParseError("库未加载".to_string()))
+            Err(LibraryError::ParseError(
+                "添加图像时异常：库未加载".to_string(),
+            ))
         }
     }
 
     /// 删除图像
     pub fn remove_image(&mut self, index: usize) -> Result<()> {
-        tracing::info!("删除图像: index={}", index);
+        tracing::debug!("删除图像: index={}", index);
 
         if let Some(ref mut lib) = self.library_v2 {
             lib.remove_image(index)?;
-            tracing::info!("删除成功");
+            tracing::debug!("删除成功");
             Ok(())
         } else {
-            Err(LibraryError::ParseError("库未加载".to_string()))
+            Err(LibraryError::ParseError(
+                "删除图像时异常：库未加载".to_string(),
+            ))
         }
     }
 
     /// 导出图像为 PNG
     pub fn export_png(&mut self, index: usize, path: &Path) -> Result<()> {
-        tracing::info!("导出图像为 PNG: index={}, path={:?}", index, path);
+        tracing::debug!("导出图像为 PNG: index={}, path={:?}", index, path);
 
         if let Some(ref mut lib) = self.library_v2 {
             let preview = lib.get_preview(index)?;
 
             if let Some(img) = preview {
                 img.save(path)?;
-                tracing::info!("导出成功");
+                tracing::debug!("导出成功");
                 Ok(())
             } else {
                 Err(LibraryError::InvalidImageData)
             }
         } else {
-            Err(LibraryError::ParseError("库未加载".to_string()))
+            Err(LibraryError::ParseError(
+                "导出图像时异常：库未加载".to_string(),
+            ))
         }
     }
 }

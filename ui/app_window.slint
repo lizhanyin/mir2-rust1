@@ -80,6 +80,17 @@ export component AppWindow inherits Window {
     in-out property <int> image_width: 0;
     in-out property <int> image_height: 0;
     in-out property <string> image_format: "-";
+    in-out property <int> image_x: 0;
+    in-out property <int> image_y: 0;
+
+    // 缩略图数组（用于存储所有图像的缩略图数据）
+    in-out property <[image]> thumbnails: [];
+
+    // 主预览图（当前选中图像的大尺寸预览）
+    in-out property <image> main_preview;
+
+    // 主预览区背景色 (true=白色, false=黑色)
+    in-out property <bool> preview_bg_light: false;
 
     // 回调
     callback open_file();
@@ -90,6 +101,7 @@ export component AppWindow inherits Window {
     callback prev_image();
     callback next_image();
     callback thumbnail_clicked(int);
+    callback toggle_preview_bg();
 
     @children
     // 主容器
@@ -103,54 +115,14 @@ export component AppWindow inherits Window {
             Rectangle {
                 background: #2d2d2d;
                 height: 32px;
-
+                
                 HorizontalLayout {
                     padding-left: 8px;
+                    padding-top: 4px;
                     padding-right: 8px;
                     spacing: 4px;
 
-                    // 文件菜单
-                    ToolbarButton {
-                        text: "文件";
-                        tooltip-text: "文件菜单";
-                        icon: "";
-                        clicked_handler => { root.open_file(); }
-                    }
-
-                    // 编辑菜单
-                    ToolbarButton {
-                        text: "编辑";
-                        tooltip-text: "编辑菜单";
-                    }
-
-                    // 视图菜单
-                    ToolbarButton {
-                        text: "视图";
-                        tooltip-text: "视图菜单";
-                    }
-
-                    // 帮助菜单
-                    ToolbarButton {
-                        text: "帮助";
-                        tooltip-text: "帮助菜单";
-                    }
-
-                    // 分隔线
-                    Rectangle {
-                        width: 1px;
-                        background: #3e3e42;
-                    }
-
-                    // 右侧弹性空间
-                    Rectangle {}
-
-                    // 分隔线
-                    Rectangle {
-                        width: 1px;
-                        background: #3e3e42;
-                    }
-
-                    // 右侧工具栏按钮组
+                    // 工具栏按钮组
                     ToolbarButton {
                         icon: "📂";
                         tooltip-text: "打开文件";
@@ -181,12 +153,6 @@ export component AppWindow inherits Window {
                         clicked_handler => { root.replace_image(); }
                     }
 
-                    // 分隔线
-                    Rectangle {
-                        width: 1px;
-                        background: #3e3e42;
-                    }
-
                     ToolbarButton {
                         icon: "◀";
                         tooltip-text: "上一张图像";
@@ -197,6 +163,22 @@ export component AppWindow inherits Window {
                         icon: "▶";
                         tooltip-text: "下一张图像";
                         clicked_handler => { root.next_image(); }
+                    }
+
+                    // 切换背景色按钮
+                    ToolbarButton {
+                        icon: root.preview_bg_light ? "⬛" : "⬜";
+                        tooltip-text: root.preview_bg_light ? "切换到黑色背景" : "切换到白色背景";
+                        clicked_handler => { root.toggle_preview_bg(); }
+                    }
+
+                    // 右侧弹性空间
+                    Rectangle {}
+
+                    // 分隔线
+                    Rectangle {
+                        width: 1px;
+                        background: #3e3e42;
                     }
                 }
             }
@@ -238,17 +220,22 @@ export component AppWindow inherits Window {
                                             spacing: 6px;
                                             padding-left: 8px;
 
-                                            Text {
-                                                text: "文件名:";
-                                                color: #858585;
-                                                font-size: 12px;
-                                            }
+                                            HorizontalLayout {
+                                                spacing: 8px;
 
-                                            Text {
-                                                text: root.file_name == "" ? "未加载" : root.file_name;
-                                                color: #cccccc;
-                                                font-size: 12px;
-                                                overflow: elide;
+                                                Text {
+                                                    text: "文件名:";
+                                                    color: #858585;
+                                                    font-size: 12px;
+                                                    width: 50px;
+                                                }
+
+                                                Text {
+                                                    text: root.file_name == "" ? "未加载" : root.file_name;
+                                                    color: #cccccc;
+                                                    font-size: 12px;
+                                                    overflow: elide;
+                                                }
                                             }
 
                                             Text {
@@ -265,7 +252,6 @@ export component AppWindow inherits Window {
                                         background: #3e3e42;
                                     }
 
-                                    // === 当前图像信息 ===
                                     VerticalLayout {
                                         spacing: 8px;
 
@@ -295,6 +281,20 @@ export component AppWindow inherits Window {
                                                     color: #cccccc;
                                                     font-size: 12px;
                                                 }
+
+                                                Text {
+                                                    text: "X:";
+                                                    color: #858585;
+                                                    font-size: 12px;
+                                                    width: 50px;
+                                                }
+
+                                                Text {
+                                                    text: "Y:";
+                                                    color: #858585;
+                                                    font-size: 12px;
+                                                    width: 50px;
+                                                }
                                             }
 
                                             HorizontalLayout {
@@ -312,39 +312,22 @@ export component AppWindow inherits Window {
                                                     color: #cccccc;
                                                     font-size: 12px;
                                                 }
-                                            }
 
-                                            HorizontalLayout {
-                                                spacing: 8px;
+                                                HorizontalLayout {
+                                                    spacing: 8px;
 
-                                                Text {
-                                                    text: "高度:";
-                                                    color: #858585;
-                                                    font-size: 12px;
-                                                    width: 50px;
-                                                }
+                                                    Text {
+                                                        text: "高度:";
+                                                        color: #858585;
+                                                        font-size: 12px;
+                                                        width: 50px;
+                                                    }
 
-                                                Text {
-                                                    text: root.current_index >= 0 ? root.image_height : "-";
-                                                    color: #cccccc;
-                                                    font-size: 12px;
-                                                }
-                                            }
-
-                                            HorizontalLayout {
-                                                spacing: 8px;
-
-                                                Text {
-                                                    text: "格式:";
-                                                    color: #858585;
-                                                    font-size: 12px;
-                                                    width: 50px;
-                                                }
-
-                                                Text {
-                                                    text: root.current_index >= 0 ? root.image_format : "-";
-                                                    color: #cccccc;
-                                                    font-size: 12px;
+                                                    Text {
+                                                        text: root.current_index >= 0 ? root.image_height : "-";
+                                                        color: #cccccc;
+                                                        font-size: 12px;
+                                                    }
                                                 }
                                             }
                                         }
@@ -384,49 +367,6 @@ export component AppWindow inherits Window {
                                             }
                                         }
                                     }
-
-                                    // 分隔线
-                                    Rectangle {
-                                        height: 1px;
-                                        background: #3e3e42;
-                                    }
-
-                                    // === 操作按钮 ===
-                                    VerticalLayout {
-                                        spacing: 8px;
-
-                                        Text {
-                                            text: "操作";
-                                            color: #858585;
-                                            font-size: 11px;
-                                            font-weight: 600;
-                                        }
-
-                                        VerticalLayout {
-                                            spacing: 8px;
-                                            
-                                            // 替换图像按钮
-                                            TouchArea {
-                                                mouse-cursor: pointer;
-                                                clicked => { root.replace_image(); }
-
-                                                Rectangle {
-                                                    background: #3e3e42;
-                                                    border-radius: 4px;
-                                                    height: 32px;
-
-                                                    Text {
-                                                        text: "替换图像";
-                                                        color: #cccccc;
-                                                        horizontal-alignment: center;
-                                                        vertical-alignment: center;
-                                                        font-size: 13px;
-                                                    }
-                                                }
-                                            }
-                                        }
-    
-                                    }
                                 }
                             }
                         }
@@ -434,32 +374,36 @@ export component AppWindow inherits Window {
 
                     // ========== 右侧：主预览区域 ==========
                     Rectangle {
-                        background: #1e1e1e;
+                        background: root.preview_bg_light ? #ffffff : #1a1a1a;
 
                         VerticalLayout {
                             spacing: 0px;
 
                             // 预览画布
                             Rectangle {
-                                background: #0c0c0c;
-
                                 HorizontalLayout {
                                     alignment: center;
 
                                     Rectangle {
                                         width: 400px;
                                         height: 400px;
-                                        background: #1e1e1e;
-                                        border-width: 1px;
-                                        border-color: #3e3e42;
 
                                         // 显示图像或占位符
                                         if root.current_index >= 0 : Rectangle {
-                                            background: #4ec9b0;
+                                            background: root.preview_bg_light ? #ffffff : #1a1a1a;
 
-                                            Text {
+                                            // 显示实际图像预览
+                                            if root.main_preview.width > 0 : Image {
+                                                source: root.main_preview;
+                                                width: 380px;
+                                                height: 380px;
+                                                image-fit: contain;
+                                            }
+
+                                            // 无预览图时显示占位符
+                                            if root.main_preview.width == 0 : Text {
                                                 text: "预览区域\n" + "图像 " + root.current_index;
-                                                color: white;
+                                                color: root.preview_bg_light ? #666 : #cccccc;
                                                 horizontal-alignment: center;
                                                 vertical-alignment: center;
                                                 font-size: 16px;
@@ -550,8 +494,16 @@ export component AppWindow inherits Window {
                                     spacing: 4px;
                                     padding: 4px;
 
-                                    // 缩略图预览
-                                    Rectangle {
+                                    // 缩略图预览 - 显示实际图像或占位符
+                                    if i < root.thumbnails.length : Image {
+                                        source: root.thumbnails[i];
+                                        width: 48px;
+                                        height: 48px;
+                                        image-fit: contain;
+                                    }
+
+                                    // 无图像时显示占位符
+                                    if i >= root.thumbnails.length : Rectangle {
                                         width: 48px;
                                         height: 48px;
                                         background: #4ec9b0;
@@ -561,10 +513,8 @@ export component AppWindow inherits Window {
                                             alignment: center;
 
                                             Text {
-                                                text: i;
-                                                color: white;
-                                                font-size: 14px;
-                                                font-weight: 600;
+                                                text: "🖼️";
+                                                font-size: 20px;
                                             }
                                         }
                                     }

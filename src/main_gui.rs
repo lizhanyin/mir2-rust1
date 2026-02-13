@@ -33,7 +33,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    tracing::info!("Library Editor GUI 启动");
+    tracing::debug!("Library Editor GUI 启动");
 
     // 创建主窗口
     let window = AppWindow::new()?;
@@ -65,8 +65,9 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .set_title("打开库文件")
                 .pick_file()
             {
-                tracing::info!("选择的文件: {:?}", path);
-                let file_name = path.file_name()
+                tracing::debug!("选择的文件: {:?}", path);
+                let file_name = path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("")
                     .to_string();
@@ -93,7 +94,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
                 .set_title("保存库文件")
                 .save_file()
             {
-                tracing::info!("保存文件: {:?}", path);
+                tracing::debug!("保存文件: {:?}", path);
                 window.set_status_text(SharedString::from(&format!("已保存: {}", path.display())));
             } else {
                 window.set_status_text(SharedString::from("保存取消"));

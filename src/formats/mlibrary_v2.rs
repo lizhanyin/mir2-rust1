@@ -1,11 +1,11 @@
 //! MLibrary V2 格式解析 (.Lib)
 //! 这是传奇2使用的自定义库文件格式
 
-use crate::error::{Result, LibraryError};
+use crate::error::{LibraryError, Result};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::Compression;
 use image::{Rgba, RgbaImage};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
@@ -339,8 +339,11 @@ impl MLibraryV2 {
         // 读取版本号
         let current_version = reader.read_i32::<LittleEndian>()?;
         if current_version != Self::LIB_VERSION {
-            tracing::error!("Wrong version, expecting lib version: {} found version: {}",
-                Self::LIB_VERSION, current_version);
+            tracing::error!(
+                "Wrong version, expecting lib version: {} found version: {}",
+                Self::LIB_VERSION,
+                current_version
+            );
             return Err(LibraryError::UnsupportedVersion(current_version));
         }
 
@@ -377,7 +380,7 @@ impl MLibraryV2 {
         }
 
         if index >= self.images.len() {
-            return Ok(());
+            return Err(LibraryError::IndexOutOfBounds(index));
         }
 
         if self.images[index].is_none() {
@@ -388,10 +391,10 @@ impl MLibraryV2 {
             return Ok(());
         }
 
-        if let Some(ref mut img) = self.images[index] {
-            if !img.texture_valid {
-                img.create_texture()?;
-            }
+        if let Some(ref mut img) = self.images[index]
+            && !img.texture_valid
+        {
+            img.create_texture()?;
         }
 
         Ok(())
