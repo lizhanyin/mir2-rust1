@@ -61,7 +61,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             window.set_status_text(SharedString::from("正在选择文件..."));
 
             if let Some(path) = rfd::FileDialog::new()
-                .add_filter("传奇库文件", &["*.wzl", "*.wzx", "*.lib", "*.wtl", "*.wil"])
+                .add_filter("传奇库文件", &["wzl", "wzx", "lib", "wtl", "wil", "*"])
                 .set_title("打开库文件")
                 .pick_file()
             {
