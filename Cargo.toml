@@ -47,5 +47,6 @@ slint = { version = "1.8", optional = true }
 rfd = { version = "0.17", optional = true }
 
 [build-dependencies]
+lucide-slint = "0.564.0"
 # GUI 构建依赖
 slint-build = { version = "1.8", optional = true }

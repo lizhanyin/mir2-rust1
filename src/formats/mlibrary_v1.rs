@@ -168,7 +168,8 @@ impl MLibraryV1 {
         let n_size = reader.read_i32::<LittleEndian>()?;
 
         // 检查图像尺寸是否有效
-        if width * height < 4 {
+        // 使用 i32 避免两个 i16 相乘溢出
+        if (width as i32) * (height as i32) < 4 {
             return Ok(MImage::new());
         }
 
@@ -178,10 +179,11 @@ impl MLibraryV1 {
         // 读取图像数据
         let bytes = if n_size == 0 {
             // 未压缩 - 直接读取原始数据
+            // 使用 i32 避免两个 i16 相乘溢出
             let size = if bo16bit {
-                (width * height * 2) as usize
+                ((width as i32) * (height as i32) * 2) as usize
             } else {
-                (width * height) as usize
+                ((width as i32) * (height as i32)) as usize
             };
             let mut buf = vec![0u8; size];
             reader.read_exact(&mut buf)?;

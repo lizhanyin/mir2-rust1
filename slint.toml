@@ -1,0 +1,4 @@
+# Slint LSP 配置 - 让 VS Code 扩展能找到 lucide-slint
+
+[libraries]
+lucide = { path = "C:\\Users\\Administrator\\.cargo\\registry\\src\\mirrors.tuna.tsinghua.edu.cn-e791a3f93f26854f\\lucide-slint-0.564.0" }

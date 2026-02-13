@@ -148,6 +148,18 @@ pub enum ShadowInfo {
 }
 
 impl ImageInfo {
+    /// 从 MLibraryV1::MImage 创建图像信息
+    pub fn from_v1_image(index: usize, image: &mlibrary_v1::MImage) -> Self {
+        Self {
+            index,
+            width: image.width as i32,
+            height: image.height as i32,
+            x: image.x as i32,
+            y: image.y as i32,
+            has_mask: ShadowInfo::None,
+        }
+    }
+
     /// 从 MLibraryV2::MImage 创建图像信息
     pub fn from_v2_image(index: usize, image: &mlibrary_v2::MImage) -> Self {
         let shadow_info = if image.has_mask {
@@ -289,10 +301,17 @@ impl LibraryLoader {
     pub fn get_image_info(&mut self, index: usize) -> Result<ImageInfo> {
         tracing::debug!("获取图像信息: index={}", index);
 
+        // 优先从 V2 获取
         if let Some(ref mut lib) = self.library_v2 {
             let image = lib.get_image(index)?;
             let info = ImageInfo::from_v2_image(index, image);
-            tracing::debug!("图像信息: {}x{}", info.width, info.height);
+            tracing::debug!("图像信息: {}x{}, offset: ({}, {})", info.width, info.height, info.x, info.y);
+            Ok(info)
+        } else if let Some(ref mut lib) = self.library_v1 {
+            // 从 V1 获取
+            let image = lib.get_image(index)?;
+            let info = ImageInfo::from_v1_image(index, image);
+            tracing::debug!("图像信息: {}x{}, offset: ({}, {})", info.width, info.height, info.x, info.y);
             Ok(info)
         } else {
             Err(LibraryError::ParseError(

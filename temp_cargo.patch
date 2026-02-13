@@ -1,3 +1,0 @@
-[features]
-default = []
-gui = ["slint", "rfd", "slint-build"]

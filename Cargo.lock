@@ -2526,6 +2526,7 @@ dependencies = [
  "byteorder",
  "flate2",
  "image",
+ "lucide-slint",
  "png 0.18.0",
  "rfd",
  "serde",
@@ -2627,6 +2628,12 @@ checksum = "0fae87c125b03c1d2c0150c90365d7d6bcc53fb73a9acaef207d2d065860f062"
 dependencies = [
  "imgref",
 ]
+
+[[package]]
+name = "lucide-slint"
+version = "0.564.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e566a355498b93cd4d49da773ff6738dbed845924d082e690db792a53e239322"
 
 [[package]]
 name = "lyon_algorithms"
