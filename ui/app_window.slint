@@ -1,6 +1,70 @@
 // Library Editor 主窗口
 // 新布局：顶部菜单栏 + 中间左右分栏 + 底部缩略图
 
+// ========== 工具栏按钮组件 ==========
+component ToolbarButton inherits Rectangle {
+    // 公共属性
+    in-out property <string> icon: "";
+    in-out property <string> text: "";
+    in-out property <string> tooltip-text: "";
+    callback clicked_handler();
+
+    // 根据是否有图标决定尺寸
+    width: self.icon == "" ? 60px : 32px;
+    height: 28px;
+    background: touch.has-hover ? #3e3e42 : #2d2d2d;
+    border-radius: 4px;
+
+    // 触摸区域处理悬停和点击
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked_handler(); }
+
+        // 工具提示（仅在悬停时显示）
+        if self.has-hover && root.tooltip-text != "" : Rectangle {
+            x: -10px;
+            y: 32px;
+            width: 100px;
+            height: 22px;
+            background: #252526;
+            border-width: 1px;
+            border-color: #007acc;
+            border-radius: 3px;
+
+            Text {
+                text: root.tooltip-text;
+                color: #ffffff;
+                font-size: 11px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // 按钮内容
+    HorizontalLayout {
+        spacing: 4px;
+        alignment: center;
+
+        // 图标（如果有）
+        if root.icon != "" : Text {
+            text: root.icon;
+            color: #cccccc;
+            font-size: 15px;
+            vertical-alignment: center;
+        }
+
+        // 文本（如果有）
+        if root.text != "" : Text {
+            text: root.text;
+            color: #cccccc;
+            font-size: 13px;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// ========== 主窗口组件 ==========
 export component AppWindow inherits Window {
     title: "Library Editor - Rust";
     width: 1200px;
@@ -38,150 +102,102 @@ export component AppWindow inherits Window {
             // ========== 顶部菜单栏 ==========
             Rectangle {
                 background: #2d2d2d;
-                height: 28px;
+                height: 32px;
 
                 HorizontalLayout {
                     padding-left: 8px;
+                    padding-right: 8px;
                     spacing: 4px;
 
                     // 文件菜单
-                    Rectangle {
-                        width: 60px;
-                        height: 24px;
-
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.open_file(); }
-
-                            Rectangle {
-                                background: #2d2d2d;
-                                border-radius: 3px;
-
-                                Text {
-                                    text: "文件";
-                                    color: #cccccc;
-                                    font-size: 13px;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                }
-                            }
-
-                            // Hover 效果通过 TouchArea 的属性实现
-                        }
+                    ToolbarButton {
+                        text: "文件";
+                        tooltip-text: "文件菜单";
+                        icon: "";
+                        clicked_handler => { root.open_file(); }
                     }
 
                     // 编辑菜单
-                    Rectangle {
-                        width: 60px;
-                        height: 24px;
-
-                        Text {
-                            text: "编辑";
-                            color: #cccccc;
-                            font-size: 13px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
+                    ToolbarButton {
+                        text: "编辑";
+                        tooltip-text: "编辑菜单";
                     }
 
                     // 视图菜单
-                    Rectangle {
-                        width: 60px;
-                        height: 24px;
-
-                        Text {
-                            text: "视图";
-                            color: #cccccc;
-                            font-size: 13px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
+                    ToolbarButton {
+                        text: "视图";
+                        tooltip-text: "视图菜单";
                     }
 
                     // 帮助菜单
-                    Rectangle {
-                        width: 60px;
-                        height: 24px;
-
-                        Text {
-                            text: "帮助";
-                            color: #cccccc;
-                            font-size: 13px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                        }
+                    ToolbarButton {
+                        text: "帮助";
+                        tooltip-text: "帮助菜单";
                     }
 
                     // 分隔线
                     Rectangle {
                         width: 1px;
-                        background: #444;
-                    }
-
-                    // 快捷工具栏
-                    HorizontalLayout {
-                        spacing: 4px;
-
-                        // 打开按钮
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.open_file(); }
-
-                            Rectangle {
-                                width: 24px;
-                                height: 24px;
-                                background: #2d2d2d;
-
-                                Text {
-                                    text: "📂";
-                                    font-size: 14px;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-
-                        // 保存按钮
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.save_file(); }
-
-                            Rectangle {
-                                width: 24px;
-                                height: 24px;
-                                background: #2d2d2d;
-
-                                Text {
-                                    text: "💾";
-                                    font-size: 14px;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
-
-                        // 导出PNG按钮
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.export_png(); }
-
-                            Rectangle {
-                                width: 24px;
-                                height: 24px;
-                                background: #2d2d2d;
-
-                                Text {
-                                    text: "📤";
-                                    font-size: 14px;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                }
-                            }
-                        }
+                        background: #3e3e42;
                     }
 
                     // 右侧弹性空间
                     Rectangle {}
+
+                    // 分隔线
+                    Rectangle {
+                        width: 1px;
+                        background: #3e3e42;
+                    }
+
+                    // 右侧工具栏按钮组
+                    ToolbarButton {
+                        icon: "📂";
+                        tooltip-text: "打开文件";
+                        clicked_handler => { root.open_file(); }
+                    }
+
+                    ToolbarButton {
+                        icon: "💾";
+                        tooltip-text: "保存文件";
+                        clicked_handler => { root.save_file(); }
+                    }
+
+                    ToolbarButton {
+                        icon: "💡";
+                        tooltip-text: "另存为";
+                        clicked_handler => { root.save_as_file(); }
+                    }
+
+                    ToolbarButton {
+                        icon: "📤";
+                        tooltip-text: "导出PNG";
+                        clicked_handler => { root.export_png(); }
+                    }
+
+                    ToolbarButton {
+                        icon: "🔄";
+                        tooltip-text: "替换图像";
+                        clicked_handler => { root.replace_image(); }
+                    }
+
+                    // 分隔线
+                    Rectangle {
+                        width: 1px;
+                        background: #3e3e42;
+                    }
+
+                    ToolbarButton {
+                        icon: "◀";
+                        tooltip-text: "上一张图像";
+                        clicked_handler => { root.prev_image(); }
+                    }
+
+                    ToolbarButton {
+                        icon: "▶";
+                        tooltip-text: "下一张图像";
+                        clicked_handler => { root.next_image(); }
+                    }
                 }
             }
 
@@ -403,28 +419,7 @@ export component AppWindow inherits Window {
 
                                         VerticalLayout {
                                             spacing: 8px;
-
-                                            // 导出PNG按钮
-                                            TouchArea {
-                                                mouse-cursor: pointer;
-                                                clicked => { root.export_png(); }
-
-                                                Rectangle {
-                                                    background: #0e639c;
-                                                    border-radius: 4px;
-                                                    height: 32px;
-
-                                                    Text {
-                                                        text: "导出 PNG";
-                                                        color: #ffffff;
-                                                        horizontal-alignment: center;
-                                                        vertical-alignment: center;
-                                                        font-size: 13px;
-                                                        font-weight: 500;
-                                                    }
-                                                }
-                                            }
-
+                                            
                                             // 替换图像按钮
                                             TouchArea {
                                                 mouse-cursor: pointer;
@@ -444,52 +439,8 @@ export component AppWindow inherits Window {
                                                     }
                                                 }
                                             }
-
-                                            // 导航按钮
-                                            HorizontalLayout {
-                                                spacing: 8px;
-
-                                                TouchArea {
-                                                    mouse-cursor: pointer;
-                                                    clicked => { root.prev_image(); }
-
-                                                    Rectangle {
-                                                        background: root.current_index > 0 ? #0e639c : #3e3e42;
-                                                        border-radius: 4px;
-                                                        height: 32px;
-                                                        width: 100px;
-
-                                                        Text {
-                                                            text: "上一张";
-                                                            color: #ffffff;
-                                                            horizontal-alignment: center;
-                                                            vertical-alignment: center;
-                                                            font-size: 13px;
-                                                        }
-                                                    }
-                                                }
-
-                                                TouchArea {
-                                                    mouse-cursor: pointer;
-                                                    clicked => { root.next_image(); }
-
-                                                    Rectangle {
-                                                        background: root.current_index < root.image_count - 1 ? #0e639c : #3e3e42;
-                                                        border-radius: 4px;
-                                                        height: 32px;
-                                                        width: 100px;
-
-                                                        Text {
-                                                            text: "下一张";
-                                                            color: #ffffff;
-                                                            horizontal-alignment: center;
-                                                            vertical-alignment: center;
-                                                            font-size: 13px;
-                                                        }
-                                                    }
-                                                }
-                                            }
                                         }
+    
                                     }
                                 }
                             }
@@ -558,7 +509,7 @@ export component AppWindow inherits Window {
                                         }
 
                                         if root.current_index < 0 : Rectangle {
-                                            background: transparent;
+                                            background: #1e1e1e;
 
                                             Text {
                                                 text: "请选择一张图像";
