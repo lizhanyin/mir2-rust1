@@ -1,56 +1,13 @@
 // Library Editor 主窗口
 // 新布局：顶部菜单栏 + 中间左右分栏 + 底部缩略图
+// 使用模块化组件
 
-import { ScrollView } from "std-widgets.slint";
-import { IconDisplay, IconSet } from "@lucide";
+import { Toolbar } from "components/toolbar.slint";
+import { PropertyPanel } from "components/property_panel.slint";
+import { PreviewPanel } from "components/preview_panel.slint";
+import { ThumbnailGrid } from "components/thumbnail_grid.slint";
+import { StatusBar } from "components/status_bar.slint";
 
-export global FontSettings {
-    in-out property<string> chinese-font: "Microsoft YaHei, SimSun, Noto Sans SC, sans-serif";
-}
-
-// ========== 工具栏按钮组件（带 lucide 图标）==========
-component IconButton inherits Rectangle {
-    // 公共属性
-    in property <string> tooltip-text: "";
-    callback clicked_handler();
-
-    width: 32px;
-    height: 28px;
-    background: touch.has-hover ? #3e3e42 : #2d2d2d;
-    border-radius: 4px;
-
-    // 触摸区域处理悬停和点击
-    touch := TouchArea {
-        mouse-cursor: pointer;
-        clicked => { root.clicked_handler(); }
-
-        // 工具提示（仅在悬停时显示）
-        if self.has-hover && root.tooltip-text != "" : Rectangle {
-            x: -10px;
-            y: 32px;
-            width: 100px;
-            height: 22px;
-            background: #252526;
-            border-width: 1px;
-            border-color: #007acc;
-            border-radius: 3px;
-
-            Text {
-                text: root.tooltip-text;
-                color: #ffffff;
-                font-family: FontSettings.chinese-font;
-                font-size: 11px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-        }
-    }
-
-    // 子组件放置图标
-    @children
-}
-
-// ========== 主窗口组件 ==========
 export component AppWindow inherits Window {
     title: "Library Editor - Rust";
     width: 1200px;
@@ -78,6 +35,13 @@ export component AppWindow inherits Window {
     // 主预览区背景色 (true=白色, false=黑色)
     in-out property <bool> preview_bg_light: false;
 
+    // 加载进度 (0-100)
+    in-out property <int> load_progress: 0;
+    // 是否正在加载
+    in-out property <bool> is_loading: false;
+    // 已加载数量
+    in-out property <int> loaded_count: 0;
+
     // 回调
     callback open_file();
     callback save_file();
@@ -89,7 +53,6 @@ export component AppWindow inherits Window {
     callback thumbnail_clicked(int);
     callback toggle_preview_bg();
 
-    @children
     // 主容器
     Rectangle {
         background: #1e1e1e;
@@ -98,107 +61,16 @@ export component AppWindow inherits Window {
             spacing: 0px;
 
             // ========== 顶部菜单栏 ==========
-            Rectangle {
-                background: #2d2d2d;
-                height: 32px;
-                
-                HorizontalLayout {
-                    padding-left: 8px;
-                    padding-top: 4px;
-                    padding-right: 8px;
-                    spacing: 4px;
-
-                    // 工具栏按钮组
-                    IconButton {
-                        tooltip-text: "打开文件";
-                        clicked_handler => { root.open_file(); }
-                        IconDisplay {
-                            icon: IconSet.FolderOpen;
-                            size: 18px;
-                            stroke: #cccccc;
-                        }
-                    }
-
-                    IconButton {
-                        tooltip-text: "保存文件";
-                        clicked_handler => { root.save_file(); }
-                        IconDisplay {
-                            icon: IconSet.Save;
-                            size: 18px;
-                            stroke: #cccccc;
-                        }
-                    }
-
-                    IconButton {
-                        tooltip-text: "另存为";
-                        clicked_handler => { root.save_as_file(); }
-                        IconDisplay {
-                            icon: IconSet.FileOutput;
-                            size: 18px;
-                            stroke: #cccccc;
-                        }
-                    }
-
-                    IconButton {
-                        tooltip-text: "导出PNG";
-                        clicked_handler => { root.export_png(); }
-                        IconDisplay {
-                            icon: IconSet.ImageDown;
-                            size: 18px;
-                            stroke: #cccccc;
-                        }
-                    }
-
-                    IconButton {
-                        tooltip-text: "替换图像";
-                        clicked_handler => { root.replace_image(); }
-                        IconDisplay {
-                            icon: IconSet.RefreshCw;
-                            size: 18px;
-                            stroke: #cccccc;
-                        }
-                    }
-
-                    IconButton {
-                        tooltip-text: "上一张图像";
-                        clicked_handler => { root.prev_image(); }
-                        IconDisplay {
-                            icon: IconSet.ChevronLeft;
-                            size: 18px;
-                            stroke: #cccccc;
-                        }
-                    }
-
-                    IconButton {
-                        tooltip-text: "下一张图像";
-                        clicked_handler => { root.next_image(); }
-                        IconDisplay {
-                            icon: IconSet.ChevronRight;
-                            size: 18px;
-                            stroke: #cccccc;
-                        }
-                    }
-
-                    // 切换背景色按钮
-                    IconButton {
-                        tooltip-text: root.preview_bg_light ? "切换到黑色背景" : "切换到白色背景";
-                        clicked_handler => { root.toggle_preview_bg(); }
-                        IconDisplay {
-                            icon: IconSet.Contrast;
-                            size: 18px;
-                            stroke: #cccccc;
-                        }
-                    }
-
-                    // 右侧弹性空间
-                    Rectangle {}
-
-                    // 分隔线
-                    Rectangle {
-                        width: 1px;
-                        background: #3e3e42;
-                    }
-                }
+            Toolbar {
+                preview_bg_light: root.preview_bg_light;
+                open_file => { root.open_file(); }
+                save_file => { root.save_file(); }
+                save_as_file => { root.save_as_file(); }
+                export_png => { root.export_png(); }
+                replace_image => { root.replace_image(); }
+                prev_image => { root.prev_image(); }
+                next_image => { root.next_image(); }
+                toggle_preview_bg => { root.toggle_preview_bg(); }
             }
 
             // ========== 中间区域：左右分栏 ==========
@@ -210,438 +82,40 @@ export component AppWindow inherits Window {
                     spacing: 0px;
 
                     // ========== 左侧：属性操作面板 ==========
-                    Rectangle {
-                        background: #252526;
-                        width: 280px;
-
-                        VerticalLayout {
-                            spacing: 0px;
-
-                            // 内容区域
-                            Rectangle {
-                                VerticalLayout {
-                                    padding: 16px;
-                                    spacing: 16px;
-
-                                    // === 文件信息组 ===
-                                    VerticalLayout {
-                                        spacing: 8px;
-
-                                        Text {
-                                            text: "文件信息";
-                                            color: #858585;
-                                            font-family: FontSettings.chinese-font;
-                                            font-size: 11px;
-                                            font-weight: 600;
-                                        }
-
-                                        VerticalLayout {
-                                            spacing: 6px;
-                                            padding-left: 8px;
-
-                                            HorizontalLayout {
-                                                spacing: 8px;
-
-                                                Text {
-                                                    text: "文件名:";
-                                                    color: #858585;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                    width: 50px;
-                                                }
-
-                                                Text {
-                                                    text: root.file_name == "" ? "未加载" : root.file_name;
-                                                    color: #cccccc;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                    overflow: elide;
-                                                }
-                                            }
-
-                                            Text {
-                                                text: "图像总数: " + root.image_count;
-                                                color: #cccccc;
-                                                font-family: FontSettings.chinese-font;
-                                                font-size: 12px;
-                                            }
-                                        }
-                                    }
-
-                                    // 分隔线
-                                    Rectangle {
-                                        height: 1px;
-                                        background: #3e3e42;
-                                    }
-
-                                    VerticalLayout {
-                                        spacing: 8px;
-
-                                        Text {
-                                            text: "当前图像";
-                                            color: #858585;
-                                            font-family: FontSettings.chinese-font;
-                                            font-size: 11px;
-                                            font-weight: 600;
-                                        }
-
-                                        VerticalLayout {
-                                            spacing: 6px;
-                                            padding-left: 8px;
-
-                                            HorizontalLayout {
-                                                spacing: 8px;
-
-                                                Text {
-                                                    text: "索引:";
-                                                    color: #858585;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                    width: 50px;
-                                                }
-
-                                                Text {
-                                                    text: root.current_index >= 0 ? root.current_index : "-";
-                                                    color: #cccccc;
-                                                    font-size: 12px;
-                                                }
-                                            }
-                                            
-                                            HorizontalLayout {
-                                                spacing: 8px;
-
-                                                Text {
-                                                    text: "偏移 X:";
-                                                    color: #858585;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                    width: 50px;
-                                                }
-
-                                                Text {
-                                                    text: root.current_index >= 0 ? root.image_x : "-";
-                                                    color: #cccccc;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                }
-                                            }
-                                            HorizontalLayout {
-                                                spacing: 8px;
-
-                                                Text {
-                                                    text: "偏移 Y:";
-                                                    color: #858585;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                    width: 50px;
-                                                }
-
-                                                Text {
-                                                    text: root.current_index >= 0 ? root.image_y : "-";
-                                                    color: #cccccc;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                }
-                                            }
-
-                                            HorizontalLayout {
-                                                spacing: 8px;
-
-                                                Text {
-                                                    text: "宽度:";
-                                                    color: #858585;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                    width: 50px;
-                                                }
-
-                                                Text {
-                                                    text: root.current_index >= 0 ? root.image_width : "-";
-                                                    color: #cccccc;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                }
-                                            }
-
-                                            HorizontalLayout {
-                                                spacing: 8px;
-
-                                                Text {
-                                                    text: "高度:";
-                                                    color: #858585;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                    width: 50px;
-                                                }
-
-                                                Text {
-                                                    text: root.current_index >= 0 ? root.image_height : "-";
-                                                    color: #cccccc;
-                                                    font-family: FontSettings.chinese-font;
-                                                    font-size: 12px;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // 分隔线
-                                    Rectangle {
-                                        height: 1px;
-                                        background: #3e3e42;
-                                    }
-
-                                    // === 调色板信息 ===
-                                    VerticalLayout {
-                                        spacing: 8px;
-
-                                        Text {
-                                            text: "调色板";
-                                            color: #858585;
-                                            font-family: FontSettings.chinese-font;
-                                            font-size: 11px;
-                                            font-weight: 600;
-                                        }
-
-                                        VerticalLayout {
-                                            spacing: 6px;
-                                            padding-left: 8px;
-
-                                            Text {
-                                                text: "256 色";
-                                                color: #cccccc;
-                                                font-family: FontSettings.chinese-font;
-                                                font-size: 12px;
-                                            }
-
-                                            Text {
-                                                text: "ARGB 8888";
-                                                color: #cccccc;
-                                                font-family: FontSettings.chinese-font;
-                                                font-size: 12px;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    PropertyPanel {
+                        file_name: root.file_name;
+                        image_count: root.image_count;
+                        current_index: root.current_index;
+                        image_x: root.image_x;
+                        image_y: root.image_y;
+                        image_width: root.image_width;
+                        image_height: root.image_height;
                     }
 
                     // ========== 右侧：主预览区域 ==========
-                    Rectangle {
-                        background: root.preview_bg_light ? #ffffff : #1a1a1a;
-
-                        VerticalLayout {
-                            spacing: 0px;
-
-                            // 预览画布
-                            Rectangle {
-                                HorizontalLayout {
-                                    alignment: center;
-
-                                    Rectangle {
-                                        width: 400px;
-                                        height: 400px;
-
-                                        // 显示图像或占位符
-                                        if root.current_index >= 0 : Rectangle {
-                                            background: root.preview_bg_light ? #ffffff : #1a1a1a;
-
-                                            // 显示实际图像预览
-                                            if root.main_preview.width > 0 : Image {
-                                                source: root.main_preview;
-                                                width: 380px;
-                                                height: 380px;
-                                                image-fit: contain;
-                                            }
-                                        }
-
-                                        if root.current_index < 0 : Rectangle {
-                                            background: #1e1e1e;
-
-                                            Text {
-                                                text: "请选择一张图像";
-                                                color: #666;
-                                                horizontal-alignment: center;
-                                                vertical-alignment: center;
-                                                font-family: FontSettings.chinese-font;
-                                                font-size: 14px;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    PreviewPanel {
+                        current_index: root.current_index;
+                        main_preview: root.main_preview;
+                        preview_bg_light: root.preview_bg_light;
                     }
                 }
             }
 
             // ========== 底部：缩略图列表 ==========
-            Rectangle {
-                background: #252526;
-
-                VerticalLayout {
-                    spacing: 0px;
-
-                    // 缩略图标题栏
-                    Rectangle {
-                        background: #2d2d2d;
-                        height: 28px;
-
-                        HorizontalLayout {
-                            padding-left: 12px;
-                            padding-right: 12px;
-                            padding-top: 8px;
-                            padding-bottom: 8px;
-
-                            Text {
-                                text: "缩略图";
-                                color: #cccccc;
-                                font-family: FontSettings.chinese-font;
-                                font-size: 12px;
-                                font-weight: 600;
-                                vertical-alignment: center;
-                            }
-
-                            Rectangle {}
-
-                            Text {
-                                text: root.image_count + " 张图像";
-                                color: #858585;
-                                font-family: FontSettings.chinese-font;
-                                font-size: 11px;
-                                vertical-alignment: center;
-                            }
-                        }
-                    }
-
-                    // 缩略图滚动区域（网格布局）
-                    scroll-container := Rectangle {
-                        background: #1e1e1e;
-
-                        // 使用 length 类型
-                        property <length> thumb-size: 84px;
-                        property <int> cols: max(1, floor((self.width - 16px) / 84px));
-                        property <int> rows: ceil(root.image_count / max(1, self.cols));
-                        property <length> content-height: self.rows * 84px + 8px;
-
-                        ScrollView {
-                            width: 100%;
-                            height: 100%;
-                            viewport-width: scroll-container.width;
-                            viewport-height: scroll-container.content-height;
-
-                            Rectangle {
-                                width: scroll-container.width;
-                                height: scroll-container.content-height;
-
-                                // 缩略图网格（使用绝对定位）
-                                for i in root.image_count : Rectangle {
-                                    x: 8px + Math.mod(i, scroll-container.cols) * 84px;
-                                    y: 8px + Math.floor(i / scroll-container.cols) * 84px;
-                                    width: 80px;
-                                    height: 80px;
-                                    background: i == root.current_index ? #37373d : #2d2d2d;
-                                    border-width: i == root.current_index ? 2px : 1px;
-                                    border-color: i == root.current_index ? #007acc : #3e3e42;
-                                    border-radius: 4px;
-
-                                    TouchArea {
-                                        mouse-cursor: pointer;
-                                        clicked => { root.thumbnail_clicked(i); }
-                                    }
-
-                                    // 缩略图预览
-                                    if i < root.thumbnails.length && root.thumbnails[i].width > 0 : Image {
-                                        source: root.thumbnails[i];
-                                        width: 72px;
-                                        height: 72px;
-                                        x: 4px;
-                                        y: 0px;
-                                        image-fit: contain;
-                                    }
-
-                                    // 无图像占位符
-                                    if i >= root.thumbnails.length || root.thumbnails[i].width == 0 : Rectangle {
-                                        width: 72px;
-                                        height: 72px;
-                                        x: 4px;
-                                        y: 0px;
-                                        background: #3e3e42;
-                                        border-radius: 4px;
-
-                                        Text {
-                                            text: "空";
-                                            color: #666;
-                                            font-size: 12px;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
-                                        }
-                                    }
-
-                                    // 索引标签
-                                    Rectangle {
-                                        x: 4px;
-                                        y: 64px;
-                                        width: 28px;
-                                        height: 14px;
-                                        background: #00000080;
-                                        border-radius: 2px;
-
-                                        Text {
-                                            text: "#" + i;
-                                            color: #ffffff;
-                                            font-size: 9px;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
-                                        }
-                                    }
-                                }
-
-                                // 空状态
-                                if root.image_count == 0 : Text {
-                                    text: "暂无图像";
-                                    color: #666;
-                                    horizontal-alignment: center;
-                                    vertical-alignment: center;
-                                    font-family: FontSettings.chinese-font;
-                                    font-size: 13px;
-                                    x: (parent.width - self.width) / 2;
-                                    y: 40px;
-                                }
-                            }
-                        }
-                    }
-                }
+            ThumbnailGrid {
+                image_count: root.image_count;
+                current_index: root.current_index;
+                thumbnails: root.thumbnails;
+                thumbnail_clicked(index) => { root.thumbnail_clicked(index); }
             }
 
             // ========== 底部状态栏 ==========
-            Rectangle {
-                background: #007acc;
-                height: 22px;
-
-                HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    padding-top: 6px;
-                    padding-bottom: 6px;
-
-                    Text {
-                        text: root.status_text;
-                        color: #ffffff;
-                        font-size: 11px;
-                        vertical-alignment: center;
-                    }
-
-                    Rectangle {}
-
-                    Text {
-                        text: "Library Editor v1.0";
-                        color: #ffffff;
-                        font-size: 10px;
-                        opacity: 0.7;
-                        vertical-alignment: center;
-                    }
-                }
+            StatusBar {
+                status_text: root.status_text;
+                load_progress: root.load_progress;
+                is_loading: root.is_loading;
+                loaded_count: root.loaded_count;
+                image_count: root.image_count;
             }
         }
     }

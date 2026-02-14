@@ -1,0 +1,45 @@
+// 工具栏按钮组件（带 lucide 图标）
+// 支持悬停提示和图标子组件
+
+import { FontSettings } from "../theme.slint";
+
+export component IconButton inherits Rectangle {
+    // 公共属性
+    in property <string> tooltip-text: "";
+    callback clicked_handler();
+
+    width: 32px;
+    height: 28px;
+    background: touch.has-hover ? #3e3e42 : #2d2d2d;
+    border-radius: 4px;
+
+    // 触摸区域处理悬停和点击
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked_handler(); }
+
+        // 工具提示（仅在悬停时显示）
+        if self.has-hover && root.tooltip-text != "" : Rectangle {
+            x: -10px;
+            y: 32px;
+            width: 100px;
+            height: 22px;
+            background: #252526;
+            border-width: 1px;
+            border-color: #007acc;
+            border-radius: 3px;
+
+            Text {
+                text: root.tooltip-text;
+                color: #ffffff;
+                font-family: FontSettings.chinese-font;
+                font-size: 11px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // 子组件放置图标
+    @children
+}

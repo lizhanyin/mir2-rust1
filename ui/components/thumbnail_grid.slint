@@ -1,0 +1,151 @@
+// 底部缩略图网格组件
+// 显示所有图像的缩略图，支持网格布局和滚动
+
+import { ScrollView } from "std-widgets.slint";
+import { FontSettings, Colors } from "../theme.slint";
+
+export component ThumbnailGrid inherits Rectangle {
+    // 属性
+    in property <int> image_count: 0;
+    in property <int> current_index: -1;
+    in property <[image]> thumbnails: [];
+
+    // 回调
+    callback thumbnail_clicked(int);
+
+    background: Colors.bg-secondary;
+
+    VerticalLayout {
+        spacing: 0px;
+
+        // 缩略图标题栏
+        Rectangle {
+            background: Colors.bg-tertiary;
+            height: 28px;
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+
+                Text {
+                    text: "缩略图";
+                    color: Colors.text-primary;
+                    font-family: FontSettings.chinese-font;
+                    font-size: 12px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+
+                Rectangle {}
+
+                Text {
+                    text: root.image_count + " 张图像";
+                    color: Colors.text-secondary;
+                    font-family: FontSettings.chinese-font;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // 缩略图滚动区域（网格布局）
+        scroll-container := Rectangle {
+            background: Colors.bg-primary;
+
+            // 使用 length 类型
+            property <length> thumb-size: 84px;
+            property <int> cols: max(1, floor((self.width - 16px) / 84px));
+            property <int> rows: ceil(root.image_count / max(1, self.cols));
+            property <length> content-height: self.rows * 84px + 8px;
+
+            ScrollView {
+                width: 100%;
+                height: 100%;
+                viewport-width: scroll-container.width;
+                viewport-height: scroll-container.content-height;
+
+                Rectangle {
+                    width: scroll-container.width;
+                    height: scroll-container.content-height;
+
+                    // 缩略图网格（使用绝对定位）
+                    for i in root.image_count : Rectangle {
+                        x: 8px + Math.mod(i, scroll-container.cols) * 84px;
+                        y: 8px + Math.floor(i / scroll-container.cols) * 84px;
+                        width: 80px;
+                        height: 80px;
+                        background: i == root.current_index ? Colors.bg-selected : Colors.bg-tertiary;
+                        border-width: i == root.current_index ? 2px : 1px;
+                        border-color: i == root.current_index ? Colors.accent : Colors.border;
+                        border-radius: 4px;
+
+                        TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.thumbnail_clicked(i); }
+                        }
+
+                        // 缩略图预览
+                        if i < root.thumbnails.length && root.thumbnails[i].width > 0 : Image {
+                            source: root.thumbnails[i];
+                            width: 72px;
+                            height: 72px;
+                            x: 4px;
+                            y: 0px;
+                            image-fit: contain;
+                        }
+
+                        // 无图像占位符
+                        if i >= root.thumbnails.length || root.thumbnails[i].width == 0 : Rectangle {
+                            width: 72px;
+                            height: 72px;
+                            x: 4px;
+                            y: 0px;
+                            background: Colors.bg-hover;
+                            border-radius: 4px;
+
+                            Text {
+                                text: "空";
+                                color: Colors.text-disabled;
+                                font-size: 12px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        // 索引标签
+                        Rectangle {
+                            x: 4px;
+                            y: 64px;
+                            width: 28px;
+                            height: 14px;
+                            background: #00000080;
+                            border-radius: 2px;
+
+                            Text {
+                                text: "#" + i;
+                                color: Colors.text-white;
+                                font-size: 9px;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    // 空状态
+                    if root.image_count == 0 : Text {
+                        text: "暂无图像";
+                        color: Colors.text-disabled;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        font-family: FontSettings.chinese-font;
+                        font-size: 13px;
+                        x: (parent.width - self.width) / 2;
+                        y: 40px;
+                    }
+                }
+            }
+        }
+    }
+}

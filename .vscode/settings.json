@@ -59,5 +59,9 @@
     "rust-analyzer.semanticHighlighting.typeHints.enable": true,
     "cSpell.words": [
         "mimage"
-    ]
+    ],
+
+    "slint.libraryPaths": {
+        "myLib": "ui/lib"
+    }
 }

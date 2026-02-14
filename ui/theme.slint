@@ -1,0 +1,30 @@
+// 全局主题设置
+// 包含字体、颜色等全局配置
+
+export global FontSettings {
+    in-out property<string> chinese-font: "Microsoft YaHei, SimSun, Noto Sans SC, sans-serif";
+}
+
+// 颜色常量
+export global Colors {
+    // 背景色
+    out property <color> bg-primary: #1e1e1e;
+    out property <color> bg-secondary: #252526;
+    out property <color> bg-tertiary: #2d2d2d;
+    out property <color> bg-hover: #3e3e42;
+    out property <color> bg-selected: #37373d;
+
+    // 文字色
+    out property <color> text-primary: #cccccc;
+    out property <color> text-secondary: #858585;
+    out property <color> text-disabled: #666666;
+    out property <color> text-white: #ffffff;
+
+    // 强调色
+    out property <color> accent: #007acc;
+    out property <color> accent-dark: #005a9e;
+
+    // 边框色
+    out property <color> border: #3e3e42;
+    out property <color> border-light: #007acc;
+}

@@ -7,11 +7,6 @@ edition = "2024"
 name = "library_editor"
 path = "src/main.rs"
 
-[[bin]]
-name = "library_editor_gui"
-path = "src/main_gui.rs"
-required-features = ["gui"]
-
 [features]
 default = ["gui"]
 gui = ["slint", "rfd", "slint-build"]

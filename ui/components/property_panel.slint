@@ -1,0 +1,231 @@
+// 左侧属性面板组件
+// 显示文件信息、当前图像信息和调色板信息
+
+import { FontSettings, Colors } from "../theme.slint";
+
+export component PropertyPanel inherits Rectangle {
+    // 属性
+    in property <string> file_name: "";
+    in property <int> image_count: 0;
+    in property <int> current_index: -1;
+    in property <int> image_x: 0;
+    in property <int> image_y: 0;
+    in property <int> image_width: 0;
+    in property <int> image_height: 0;
+
+    background: Colors.bg-secondary;
+    width: 280px;
+
+    VerticalLayout {
+        spacing: 0px;
+
+        // 内容区域
+        Rectangle {
+            VerticalLayout {
+                padding: 16px;
+                spacing: 16px;
+
+                // === 文件信息组 ===
+                VerticalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: "文件信息";
+                        color: Colors.text-secondary;
+                        font-family: FontSettings.chinese-font;
+                        font-size: 11px;
+                        font-weight: 600;
+                    }
+
+                    VerticalLayout {
+                        spacing: 6px;
+                        padding-left: 8px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "文件名:";
+                                color: Colors.text-secondary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                width: 50px;
+                            }
+
+                            Text {
+                                text: root.file_name == "" ? "未加载" : root.file_name;
+                                color: Colors.text-primary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                overflow: elide;
+                            }
+                        }
+
+                        Text {
+                            text: "图像总数: " + root.image_count;
+                            color: Colors.text-primary;
+                            font-family: FontSettings.chinese-font;
+                            font-size: 12px;
+                        }
+                    }
+                }
+
+                // 分隔线
+                Rectangle {
+                    height: 1px;
+                    background: Colors.border;
+                }
+
+                // === 当前图像信息 ===
+                VerticalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: "当前图像";
+                        color: Colors.text-secondary;
+                        font-family: FontSettings.chinese-font;
+                        font-size: 11px;
+                        font-weight: 600;
+                    }
+
+                    VerticalLayout {
+                        spacing: 6px;
+                        padding-left: 8px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "索引:";
+                                color: Colors.text-secondary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                width: 50px;
+                            }
+
+                            Text {
+                                text: root.current_index >= 0 ? root.current_index : "-";
+                                color: Colors.text-primary;
+                                font-size: 12px;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "偏移 X:";
+                                color: Colors.text-secondary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                width: 50px;
+                            }
+
+                            Text {
+                                text: root.current_index >= 0 ? root.image_x : "-";
+                                color: Colors.text-primary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "偏移 Y:";
+                                color: Colors.text-secondary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                width: 50px;
+                            }
+
+                            Text {
+                                text: root.current_index >= 0 ? root.image_y : "-";
+                                color: Colors.text-primary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "宽度:";
+                                color: Colors.text-secondary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                width: 50px;
+                            }
+
+                            Text {
+                                text: root.current_index >= 0 ? root.image_width : "-";
+                                color: Colors.text-primary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "高度:";
+                                color: Colors.text-secondary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                width: 50px;
+                            }
+
+                            Text {
+                                text: root.current_index >= 0 ? root.image_height : "-";
+                                color: Colors.text-primary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                            }
+                        }
+                    }
+                }
+
+                // 分隔线
+                Rectangle {
+                    height: 1px;
+                    background: Colors.border;
+                }
+
+                // === 调色板信息 ===
+                VerticalLayout {
+                    spacing: 8px;
+
+                    Text {
+                        text: "调色板";
+                        color: Colors.text-secondary;
+                        font-family: FontSettings.chinese-font;
+                        font-size: 11px;
+                        font-weight: 600;
+                    }
+
+                    VerticalLayout {
+                        spacing: 6px;
+                        padding-left: 8px;
+
+                        Text {
+                            text: "256 色";
+                            color: Colors.text-primary;
+                            font-family: FontSettings.chinese-font;
+                            font-size: 12px;
+                        }
+
+                        Text {
+                            text: "ARGB 8888";
+                            color: Colors.text-primary;
+                            font-family: FontSettings.chinese-font;
+                            font-size: 12px;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

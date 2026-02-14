@@ -233,10 +233,12 @@ impl LibraryLoader {
         tracing::debug!("识别为格式: {}", lib_type.name());
 
         // 获取基础路径（去掉扩展名）
+        // 注意：with_extension("") 会保留末尾的点，需要手动去除
         let base_path = path
             .with_extension("")
             .to_str()
             .ok_or_else(|| LibraryError::ParseError("路径转换失败".to_string()))?
+            .trim_end_matches('.')
             .to_string();
 
         tracing::debug!("基础路径: {}", base_path);

@@ -1,0 +1,71 @@
+// 底部状态栏组件
+// 显示状态文本、加载进度和版本信息
+import { FontSettings, Colors } from "../theme.slint";
+
+export component StatusBar inherits Rectangle {
+    // 属性
+    in property <string> status_text: "就绪";
+    in property <int> load_progress: 0;
+    in property <bool> is_loading: false;
+    in property <int> loaded_count: 0;
+    in property <int> image_count: 0;
+
+    background: Colors.accent;
+    height: 22px;
+
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 6px;
+        padding-bottom: 6px;
+        spacing: 8px;
+
+        Text {
+            text: root.status_text;
+            color: Colors.text-white;
+            font-size: 11px;
+            vertical-alignment: center;
+        }
+
+        // 进度条（加载时显示）
+        if root.is_loading : Rectangle {
+            width: 150px;
+            height: 10px;
+            background: Colors.accent-dark;
+            border-radius: 5px;
+
+            // ProgressBar {
+            //     width: 300px;
+            //     height: 50px;
+            //     progress: Util.progress-value(3s);
+            //     is-moving-text: true;
+            // }
+
+            Rectangle {
+                width: parent.width * root.load_progress / 100;
+                height: 100%;
+                background: Colors.text-white;
+                border-radius: 5px;
+            }
+
+            Text {
+                text: root.loaded_count + "/" + root.image_count;
+                color: Colors.text-white;
+                font-size: 8px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                x: (parent.width - self.width) / 2;
+            }
+        }
+
+        Rectangle {}
+
+        Text {
+            text: "Library Editor v1.0";
+            color: Colors.text-white;
+            font-size: 10px;
+            opacity: 0.7;
+            vertical-alignment: center;
+        }
+    }
+}

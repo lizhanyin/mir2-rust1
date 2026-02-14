@@ -45,6 +45,7 @@ logs/*
 
 # 图像缓存
 *.cache
+temp
 
 data
 !data.7z

@@ -1,0 +1,123 @@
+// 顶部工具栏组件
+// 包含文件操作、导航等功能按钮
+
+import { IconDisplay, IconSet } from "../lib/@lucide.slint";
+import { FontSettings, Colors } from "../theme.slint";
+import { IconButton } from "icon_button.slint";
+
+export component Toolbar inherits Rectangle {
+    // 回调
+    callback open_file();
+    callback save_file();
+    callback save_as_file();
+    callback export_png();
+    callback replace_image();
+    callback prev_image();
+    callback next_image();
+    callback toggle_preview_bg();
+
+    // 属性
+    in property <bool> preview_bg_light: false;
+
+    background: Colors.bg-tertiary;
+    height: 32px;
+
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-top: 4px;
+        padding-right: 8px;
+        spacing: 4px;
+
+        // 文件操作按钮组
+        IconButton {
+            tooltip-text: "打开文件";
+            clicked_handler => { root.open_file(); }
+            IconDisplay {
+                icon: IconSet.FolderOpen;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
+
+        IconButton {
+            tooltip-text: "保存文件";
+            clicked_handler => { root.save_file(); }
+            IconDisplay {
+                icon: IconSet.Save;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
+
+        IconButton {
+            tooltip-text: "另存为";
+            clicked_handler => { root.save_as_file(); }
+            IconDisplay {
+                icon: IconSet.FileOutput;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
+
+        IconButton {
+            tooltip-text: "导出PNG";
+            clicked_handler => { root.export_png(); }
+            IconDisplay {
+                icon: IconSet.ImageDown;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
+
+        IconButton {
+            tooltip-text: "替换图像";
+            clicked_handler => { root.replace_image(); }
+            IconDisplay {
+                icon: IconSet.RefreshCw;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
+
+        // 分隔线
+        Rectangle {
+            width: 1px;
+            background: Colors.border;
+        }
+
+        // 导航按钮组
+        IconButton {
+            tooltip-text: "上一张图像";
+            clicked_handler => { root.prev_image(); }
+            IconDisplay {
+                icon: IconSet.ChevronLeft;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
+
+        IconButton {
+            tooltip-text: "下一张图像";
+            clicked_handler => { root.next_image(); }
+            IconDisplay {
+                icon: IconSet.ChevronRight;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
+
+        // 右侧弹性空间
+        Rectangle {}
+
+        // 切换背景色按钮
+        IconButton {
+            tooltip-text: root.preview_bg_light ? "切换到黑色背景" : "切换到白色背景";
+            clicked_handler => { root.toggle_preview_bg(); }
+            IconDisplay {
+                icon: IconSet.Contrast;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
+    }
+}
