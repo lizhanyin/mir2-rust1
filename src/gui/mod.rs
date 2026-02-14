@@ -18,7 +18,7 @@ slint::include_modules!();
 const DEFAULT_CACHE_MAX_SIZE: u64 = 9999999;
 
 /// 默认按键节流间隔（毫秒）
-const DEFAULT_KEY_THROTTLE_MS: u64 = 50;
+const DEFAULT_KEY_THROTTLE_MS: u64 = 35;
 
 /// 应用程序设置（支持动态修改）
 #[derive(Debug)]
@@ -39,11 +39,7 @@ impl AppSettings {
 
     fn get_cache_max_size(&self) -> usize {
         let size = self.cache_max_size.load(Ordering::SeqCst);
-        if size == 0 {
-            usize::MAX
-        } else {
-            size as usize
-        }
+        if size == 0 { usize::MAX } else { size as usize }
     }
 
     fn set_cache_max_size(&self, size: u64) {
@@ -773,6 +769,22 @@ pub fn run() -> Result<()> {
         let settings = state.settings.clone();
 
         window.on_key_pressed(move |text| {
+            // 获取按键字符的 Unicode 码点
+            // Slint 箭头键码点: U+F700(Up), U+F701(Down), U+F702(Left), U+F703(Right)
+            let key_code = text.chars().next().map(|c| c as u32);
+
+            // 判断是否是导航键
+            let is_navigation_key = matches!(
+                key_code,
+                Some(0xF700) | Some(0xF701) |  // Up, Down
+                Some(0xF702) | Some(0xF703) |  // Left, Right
+                Some(0xF704) | Some(0xF705) // Home, End
+            );
+
+            if !is_navigation_key {
+                return; // 不是导航键，不处理
+            }
+
             // 节流检查：使用动态配置的间隔
             {
                 let mut last_time = last_key_time.lock().unwrap();
@@ -795,23 +807,45 @@ pub fn run() -> Result<()> {
             }
 
             let current = window.get_current_index();
+            let cols = window.get_thumb_cols().max(1);
             let mut new_index = current;
 
             // 判断按键
-            if text == "Left" || text == "←" {
-                if current > 0 {
-                    new_index = current - 1;
+            match key_code {
+                Some(0xF702) => {
+                    // Left
+                    if current > 0 {
+                        new_index = current - 1;
+                    }
                 }
-            } else if text == "Right" || text == "→" {
-                if current < image_count - 1 {
-                    new_index = current + 1;
+                Some(0xF703) => {
+                    // Right
+                    if current < image_count - 1 {
+                        new_index = current + 1;
+                    }
                 }
-            } else if text == "Home" {
-                new_index = 0;
-            } else if text == "End" {
-                new_index = image_count - 1;
-            } else {
-                return; // 不是导航键，不处理
+                Some(0xF700) => {
+                    // Up
+                    if current >= cols {
+                        new_index = current - cols;
+                    }
+                }
+                Some(0xF701) => {
+                    // Down
+                    let idx = current + cols;
+                    if idx < image_count {
+                        new_index = idx;
+                    }
+                }
+                Some(0xF704) => {
+                    // Home
+                    new_index = 0;
+                }
+                Some(0xF705) => {
+                    // End
+                    new_index = image_count - 1;
+                }
+                _ => return,
             }
 
             // 如果索引有变化，更新UI
@@ -841,7 +875,8 @@ pub fn run() -> Result<()> {
             settings.set_key_throttle_ms(key_throttle_ms as u64);
             tracing::info!(
                 "设置已更新: cache_max_size={}, key_throttle_ms={}",
-                cache_max_size, key_throttle_ms
+                cache_max_size,
+                key_throttle_ms
             );
         });
     }

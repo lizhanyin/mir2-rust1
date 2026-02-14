@@ -78,9 +78,9 @@ impl MLibraryV1 {
         self.wzl_reader = Some(BufReader::new(wzl_file));
 
         // 初始化时检查所有图像
-        for i in 0..self.index_list.len() {
-            let _ = self.check_image(i);
-        }
+        // for i in 0..self.index_list.len() {
+        //     let _ = self.check_image(i);
+        // }
         Ok(())
     }
 

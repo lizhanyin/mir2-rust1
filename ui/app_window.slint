@@ -86,54 +86,9 @@ export component AppWindow inherits Window {
                 return accept;
             }
 
-            // 调用 Rust 回调记录日志
+            // 调用 Rust 回调处理所有按键逻辑（包括节流和导航）
             root.key_pressed(event.text);
-
-            if root.image_count == 0 {
-                return reject;
-            }
-
-            let current = root.current_index;
-            let cols = root.thumb_cols;
-
-            if event.text == Key.LeftArrow {
-                if current > 0 {
-                    root.current_index = current - 1;
-                    root.thumbnail_clicked(root.current_index);
-                }
-                return accept;
-            } else if event.text == Key.RightArrow {
-                if current < root.image_count - 1 {
-                    root.current_index = current + 1;
-                    root.thumbnail_clicked(root.current_index);
-                }
-                return accept;
-            } else if event.text == Key.UpArrow {
-                // 向上移动一行
-                if current >= cols {
-                    root.current_index = current - cols;
-                    root.thumbnail_clicked(root.current_index);
-                }
-                return accept;
-            } else if event.text == Key.DownArrow {
-                // 向下移动一行
-                let new_index = current + cols;
-                if new_index < root.image_count {
-                    root.current_index = new_index;
-                    root.thumbnail_clicked(root.current_index);
-                }
-                return accept;
-            } else if event.text == Key.Home {
-                root.current_index = 0;
-                root.thumbnail_clicked(0);
-                return accept;
-            } else if event.text == Key.End {
-                root.current_index = root.image_count - 1;
-                root.thumbnail_clicked(root.image_count - 1);
-                return accept;
-            }
-
-            return reject;
+            return accept;
         }
 
         Rectangle {
@@ -212,8 +167,8 @@ export component AppWindow inherits Window {
 
     // ========== 设置对话框（覆盖层） ==========
     if root.show_settings : SettingsDialog {
-        cache_max_size: root.cache_max_size;
-        key_throttle_ms: root.key_throttle_ms;
+        cache_max_size <=> root.cache_max_size;
+        key_throttle_ms <=> root.key_throttle_ms;
         save => {
             root.save_settings(root.cache_max_size, root.key_throttle_ms);
             root.show_settings = false;
