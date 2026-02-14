@@ -8,9 +8,14 @@ export component PreviewPanel inherits Rectangle {
     in property <int> current_index: -1;
     in property <image> main_preview;
     in property <bool> preview_bg_light: false;
+    // 缩放比例 (50-200)
+    in property <int> zoom_scale: 100;
 
+    // 计算后的图像尺寸 (基础尺寸 380px)
+    property <length> scaled_size: 180px * root.zoom_scale / 100;
+    // 画布容器尺寸
+    property <length> canvas_size: 200px * root.zoom_scale / 100;
     background: root.preview_bg_light ? #ffffff : #1a1a1a;
-
     VerticalLayout {
         spacing: 0px;
 
@@ -18,27 +23,26 @@ export component PreviewPanel inherits Rectangle {
         Rectangle {
             HorizontalLayout {
                 alignment: center;
-
                 Rectangle {
-                    width: 400px;
-                    height: 400px;
-
+                    width: root.canvas_size;
+                    height: root.canvas_size;
+        
                     // 显示图像或占位符
-                    if root.current_index >= 0 : Rectangle {
+                    if root.current_index >= 0: Rectangle {
                         background: root.preview_bg_light ? #ffffff : #1a1a1a;
-
+        
                         // 显示实际图像预览
-                        if root.main_preview.width > 0 : Image {
+                        if root.main_preview.width > 0: Image {
                             source: root.main_preview;
-                            width: 380px;
-                            height: 380px;
+                            width: root.scaled_size;
+                            height: root.scaled_size;
                             image-fit: contain;
                         }
                     }
-
-                    if root.current_index < 0 : Rectangle {
+                    if root.current_index < 0: Rectangle {
                         background: Colors.bg-primary;
-
+                        x: 551px;
+                        y: 109px;
                         Text {
                             text: "请选择一张图像";
                             color: Colors.text-disabled;

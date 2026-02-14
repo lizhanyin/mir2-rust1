@@ -62,9 +62,29 @@ export component ThumbnailGrid inherits Rectangle {
 
             ScrollView {
                 width: 100%;
+                has-focus: true;
                 height: 100%;
                 viewport-width: scroll-container.width;
                 viewport-height: scroll-container.content-height;
+
+                // 计算目标滚动位置，确保当前缩略图可见
+                // 使用单向绑定，用户手动滚动时不会更新
+                viewport-y: {
+                    // 当前选中缩略图的位置
+                    let current_row = root.current_index >= 0 ? Math.floor(root.current_index / max(1, scroll-container.cols)) : 0;
+                    let thumb_y = 8px + current_row * 84px;
+
+                    // 可滚动的最大距离
+                    let max_scroll = max(0px, scroll-container.content-height - scroll-container.height);
+
+                    // 目标：让选中缩略图显示在可视区域
+                    let target = thumb_y - 20px;
+
+                    // 限制在有效范围内
+                    if target < 0px { 0px }
+                    else if target > max_scroll { max_scroll }
+                    else { target }
+                }
 
                 Rectangle {
                     width: scroll-container.width;

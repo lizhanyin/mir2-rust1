@@ -18,6 +18,8 @@ export component Toolbar inherits Rectangle {
 
     // 属性
     in property <bool> preview_bg_light: false;
+    // 缩放比例 (50-200, 默认100)
+    in-out property <int> zoom_scale: 100;
 
     background: Colors.bg-tertiary;
     height: 32px;
@@ -103,6 +105,118 @@ export component Toolbar inherits Rectangle {
                 icon: IconSet.ChevronRight;
                 size: 18px;
                 stroke: Colors.text-primary;
+            }
+        }
+
+        // 分隔线
+        Rectangle {
+            width: 1px;
+            background: Colors.border;
+        }
+
+        // 缩放控制区域
+        HorizontalLayout {
+            spacing: 6px;
+            alignment: center;
+
+            // 缩小按钮
+            IconButton {
+                tooltip-text: "缩小";
+                clicked_handler => {
+                    if root.zoom_scale > 50 {
+                        root.zoom_scale -= 10;
+                    }
+                }
+                IconDisplay {
+                    icon: IconSet.Minus;
+                    size: 16px;
+                    stroke: Colors.text-primary;
+                }
+            }
+
+            // 缩放滑块
+            Rectangle {
+                width: 100px;
+                height: 20px;
+                border-radius: 4px;
+                background: #2a2a2a;
+
+                // 滑块轨道
+                Rectangle {
+                    x: 4px;
+                    y: 8px;
+                    width: parent.width - 8px;
+                    height: 4px;
+                    border-radius: 2px;
+                    background: #404040;
+
+                    // 已填充部分
+                    Rectangle {
+                        width: (parent.width * (root.zoom_scale - 50)) / 150;
+                        height: 100%;
+                        border-radius: 2px;
+                        background: #4a9eff;
+                    }
+                }
+
+                // 滑块手柄
+                Rectangle {
+                    x: 4px + (parent.width - 16px) * (root.zoom_scale - 50) / 150 - 6px;
+                    y: 4px;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    background: #ffffff;
+                    border-width: 1px;
+                    border-color: #4a9eff;
+                }
+
+                // 滑块交互区域
+                TouchArea {
+                    property <length> drag-start-x: 0;
+                    property <int> drag-start-scale: 100;
+
+                    pointer-event(event) => {
+                        if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+                            self.drag-start-x = self.mouse-x;
+                            self.drag-start-scale = root.zoom_scale;
+                        }
+                    }
+
+                    moved => {
+                        if self.pressed {
+                            // 计算新位置并更新缩放值
+                            let slider-width = 100px - 16px;
+                            let delta-x = self.mouse-x - self.drag-start-x;
+                            let new-value = self.drag-start-scale + (delta-x * 150 / slider-width);
+                            root.zoom_scale = round(min(200, max(50, new-value)));
+                        }
+                    }
+                }
+            }
+
+            // 放大按钮
+            IconButton {
+                tooltip-text: "放大";
+                clicked_handler => {
+                    if root.zoom_scale < 200 {
+                        root.zoom_scale += 10;
+                    }
+                }
+                IconDisplay {
+                    icon: IconSet.Plus;
+                    size: 16px;
+                    stroke: Colors.text-primary;
+                }
+            }
+
+            // 缩放百分比显示
+            Text {
+                text: root.zoom_scale + "%";
+                color: Colors.text-primary;
+                font-size: 12px;
+                vertical-alignment: center;
+                min-width: 40px;
             }
         }
 

@@ -10,8 +10,12 @@ import { StatusBar } from "components/status_bar.slint";
 
 export component AppWindow inherits Window {
     title: "Library Editor - Rust";
-    width: 1200px;
-    height: 800px;
+    width: 1024px;
+    height: 768px;
+    resize-border-width: 8px;
+
+    // 将焦点转发给 FocusScope
+    forward-focus: focus-scope;
 
     // 状态属性
     in-out property <string> status_text: "就绪";
@@ -35,6 +39,9 @@ export component AppWindow inherits Window {
     // 主预览区背景色 (true=白色, false=黑色)
     in-out property <bool> preview_bg_light: false;
 
+    // 缩放比例 (50-200, 默认100表示100%)
+    in-out property <int> zoom_scale: 100;
+
     // 加载进度 (0-100)
     in-out property <int> load_progress: 0;
     // 是否正在加载
@@ -52,10 +59,50 @@ export component AppWindow inherits Window {
     callback next_image();
     callback thumbnail_clicked(int);
     callback toggle_preview_bg();
+    callback key_pressed(string);
 
-    // 主容器
-    Rectangle {
-        background: #1e1e1e;
+    // 主容器 - 使用 FocusScope 处理键盘事件
+    focus-scope := FocusScope {
+        width: 100%;
+        height: 100%;
+
+        key-pressed(event) => {
+            // 调用 Rust 回调记录日志
+            root.key_pressed(event.text);
+
+            if root.image_count == 0 {
+                return reject;
+            }
+
+            let current = root.current_index;
+
+            if event.text == Key.LeftArrow {
+                if current > 0 {
+                    root.current_index = current - 1;
+                    root.thumbnail_clicked(root.current_index);
+                }
+                return accept;
+            } else if event.text == Key.RightArrow {
+                if current < root.image_count - 1 {
+                    root.current_index = current + 1;
+                    root.thumbnail_clicked(root.current_index);
+                }
+                return accept;
+            } else if event.text == Key.Home {
+                root.current_index = 0;
+                root.thumbnail_clicked(0);
+                return accept;
+            } else if event.text == Key.End {
+                root.current_index = root.image_count - 1;
+                root.thumbnail_clicked(root.image_count - 1);
+                return accept;
+            }
+
+            return reject;
+        }
+
+        Rectangle {
+            background: #1e1e1e;
 
         VerticalLayout {
             spacing: 0px;
@@ -63,6 +110,7 @@ export component AppWindow inherits Window {
             // ========== 顶部菜单栏 ==========
             Toolbar {
                 preview_bg_light: root.preview_bg_light;
+                zoom_scale <=> root.zoom_scale;
                 open_file => { root.open_file(); }
                 save_file => { root.save_file(); }
                 save_as_file => { root.save_as_file(); }
@@ -97,6 +145,7 @@ export component AppWindow inherits Window {
                         current_index: root.current_index;
                         main_preview: root.main_preview;
                         preview_bg_light: root.preview_bg_light;
+                        zoom_scale: root.zoom_scale;
                     }
                 }
             }
@@ -118,5 +167,6 @@ export component AppWindow inherits Window {
                 image_count: root.image_count;
             }
         }
+    }
     }
 }

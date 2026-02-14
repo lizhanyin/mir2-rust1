@@ -6,8 +6,8 @@ pub use crate::error::Result;
 
 use slint::SharedString;
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 use tracing_appender::rolling;
@@ -123,14 +123,13 @@ impl MultiThreadLoader {
     }
 
     /// 启动多线程加载
-    fn start_loading(
-        &self,
-        base_path: String,
-        library_type: crate::formats::LibraryType,
-    ) {
-        let num_threads = std::cmp::min(4, std::thread::available_parallelism()
-            .map(|p| p.get())
-            .unwrap_or(2));
+    fn start_loading(&self, base_path: String, library_type: crate::formats::LibraryType) {
+        let num_threads = std::cmp::min(
+            4,
+            std::thread::available_parallelism()
+                .map(|p| p.get())
+                .unwrap_or(2),
+        );
 
         let chunk_size = (self.total_count + num_threads - 1) / num_threads;
 
@@ -151,9 +150,7 @@ impl MultiThreadLoader {
             thread::spawn(move || {
                 // 在子线程中创建新的加载器实例
                 let mut loader = match crate::formats::LibraryLoader::load(
-                    &std::path::Path::new(&base_path).with_extension(
-                        library_type.main_extension()
-                    )
+                    &std::path::Path::new(&base_path).with_extension(library_type.main_extension()),
                 ) {
                     Ok((_, loader)) => loader,
                     Err(e) => {
@@ -375,7 +372,11 @@ pub fn run() -> Result<()> {
                     // 根据图像数量选择加载方式
                     if info.image_count > MULTITHREAD_THRESHOLD {
                         // 多线程加载
-                        tracing::info!("图像数量 {} > {}，启用多线程加载", info.image_count, MULTITHREAD_THRESHOLD);
+                        tracing::info!(
+                            "图像数量 {} > {}，启用多线程加载",
+                            info.image_count,
+                            MULTITHREAD_THRESHOLD
+                        );
                         window.set_status_text(SharedString::from(&format!(
                             "多线程加载中: {} 张图像...",
                             info.image_count
@@ -452,14 +453,22 @@ pub fn run() -> Result<()> {
                         std::mem::forget(timer);
                     } else {
                         // 单线程加载
-                        tracing::info!("图像数量 {} <= {}，使用单线程加载", info.image_count, MULTITHREAD_THRESHOLD);
+                        tracing::info!(
+                            "图像数量 {} <= {}，使用单线程加载",
+                            info.image_count,
+                            MULTITHREAD_THRESHOLD
+                        );
                         window.set_status_text(SharedString::from(&format!(
                             "正在加载缩略图: {} 张图像...",
                             info.image_count
                         )));
 
                         if info.image_count > 0 {
-                            AppState::update_thumbnails_single_thread(&window, &mut loader, info.image_count);
+                            AppState::update_thumbnails_single_thread(
+                                &window,
+                                &mut loader,
+                                info.image_count,
+                            );
                             window.set_status_text(SharedString::from(&format!(
                                 "已加载: {} ({} 张图像)",
                                 info.file_name, info.image_count
@@ -602,10 +611,7 @@ pub fn run() -> Result<()> {
                     }
                     Err(e) => {
                         tracing::error!("导出失败: {:?}", e);
-                        window.set_status_text(SharedString::from(&format!(
-                            "导出失败: {}",
-                            e
-                        )));
+                        window.set_status_text(SharedString::from(&format!("导出失败: {}", e)));
                     }
                 }
             }
@@ -663,10 +669,7 @@ pub fn run() -> Result<()> {
                 }
                 Err(e) => {
                     tracing::error!("加载图像失败: {:?}", e);
-                    window.set_status_text(SharedString::from(&format!(
-                        "加载图像失败: {}",
-                        e
-                    )));
+                    window.set_status_text(SharedString::from(&format!("加载图像失败: {}", e)));
                 }
             }
         });
@@ -785,8 +788,66 @@ pub fn run() -> Result<()> {
         });
     }
 
+    // 设置键盘事件回调 - 在 Rust 端处理导航
+    {
+        let window_weak = window_weak.clone();
+        let library_loader = state.library_loader.clone();
+
+        window.on_key_pressed(move |text| {
+            tracing::debug!("键盘事件: text='{}'", text);
+
+            let window = match window_weak.upgrade() {
+                Some(w) => w,
+                None => return,
+            };
+
+            let image_count = window.get_image_count();
+            if image_count == 0 {
+                return;
+            }
+
+            let current = window.get_current_index();
+            let mut new_index = current;
+
+            // 判断按键
+            if text == "Left" || text == "←" {
+                if current > 0 {
+                    new_index = current - 1;
+                }
+            } else if text == "Right" || text == "→" {
+                if current < image_count - 1 {
+                    new_index = current + 1;
+                }
+            } else if text == "Home" {
+                new_index = 0;
+            } else if text == "End" {
+                new_index = image_count - 1;
+            } else {
+                return; // 不是导航键，不处理
+            }
+
+            // 如果索引有变化，更新UI
+            if new_index != current {
+                window.set_current_index(new_index);
+                tracing::debug!("切换到图像: {}", new_index);
+
+                if let Some(ref mut loader) = *library_loader.lock().unwrap() {
+                    if let Ok(img_info) = loader.get_image_info(new_index as usize) {
+                        window.set_image_width(img_info.width);
+                        window.set_image_height(img_info.height);
+                        window.set_image_x(img_info.x);
+                        window.set_image_y(img_info.y);
+                    }
+                    AppState::update_main_preview(&window, loader, new_index as usize);
+                }
+            }
+        });
+    }
+
     tracing::debug!("运行主窗口");
-    window.run().map_err(|e| LibraryError::Gui(format!("运行窗口失败: {:?}", e)))?;
+    window
+        .run()
+        .map_err(|e| LibraryError::Gui(format!("运行窗口失败: {:?}", e)))?;
 
     Ok(())
 }
