@@ -794,8 +794,6 @@ pub fn run() -> Result<()> {
         let library_loader = state.library_loader.clone();
 
         window.on_key_pressed(move |text| {
-            tracing::debug!("键盘事件: text='{}'", text);
-
             let window = match window_weak.upgrade() {
                 Some(w) => w,
                 None => return,

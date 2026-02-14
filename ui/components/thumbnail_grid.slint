@@ -69,31 +69,44 @@ export component ThumbnailGrid inherits Rectangle {
             property <int> rows: ceil(root.image_count / max(1, root.cols));
             property <length> content-height: self.rows * 84px + 8px;
 
-            ScrollView {
+            // 滚动位置（通过双向绑定控制 ScrollView）
+            in-out property <length> scroll-y: 0px;
+
+            // 接收父组件的 current_index
+            property <int> sel_index: root.current_index;
+
+            // 当选中项变化时，确保缩略图可见
+            changed sel_index => {
+                let current_row = self.sel_index >= 0 ? Math.floor(self.sel_index / max(1, root.cols)) : 0;
+                let thumb_top = 8px + current_row * 84px;
+                let thumb_bottom = thumb_top + 80px;
+
+                // viewport-y 是负值，需要取反
+                let view_top = -scroll-container.scroll-y;
+                let view_height = scroll-container.height;
+                let view_bottom = view_top + view_height;
+
+                let max_scroll = max(0px, scroll-container.content-height - view_height);
+
+                // 如果缩略图在可视区域上方，向上滚动
+                if thumb_top < view_top {
+                    let new_y = max(0px, thumb_top - 4px);
+                    scroll-container.scroll-y = -new_y;
+                }
+                // 如果缩略图在可视区域下方，向下滚动
+                else if thumb_bottom > view_bottom {
+                    let new_y = min(max_scroll, thumb_bottom - view_height + 4px);
+                    scroll-container.scroll-y = -new_y;
+                }
+            }
+
+            scroll-view := ScrollView {
                 width: 100%;
                 has-focus: true;
                 height: 100%;
                 viewport-width: scroll-container.width;
                 viewport-height: scroll-container.content-height;
-
-                // 计算目标滚动位置，确保当前缩略图可见
-                // 使用单向绑定，用户手动滚动时不会更新
-                viewport-y: {
-                    // 当前选中缩略图的位置
-                    let current_row = root.current_index >= 0 ? Math.floor(root.current_index / max(1, root.cols)) : 0;
-                    let thumb_y = 8px + current_row * 84px;
-
-                    // 可滚动的最大距离
-                    let max_scroll = max(0px, scroll-container.content-height - scroll-container.height);
-
-                    // 目标：让选中缩略图显示在可视区域
-                    let target = thumb_y - 20px;
-
-                    // 限制在有效范围内
-                    if target < 0px { 0px }
-                    else if target > max_scroll { max_scroll }
-                    else { target }
-                }
+                viewport-y <=> scroll-container.scroll-y;
 
                 Rectangle {
                     width: scroll-container.width;
