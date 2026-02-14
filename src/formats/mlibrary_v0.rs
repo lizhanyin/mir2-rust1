@@ -404,11 +404,23 @@ impl MLibraryV0 {
 
         reader.seek(SeekFrom::Start(header_size as u64))?;
         for i in 0..self.count {
-            let offset = reader.read_u32::<LittleEndian>().map_err(|e| {
-                tracing::error!("读取第 {} 个偏移量失败: {}", i, e);
-                e
-            })?;
-            self.index_list.push(offset);
+            match reader.read_u32::<LittleEndian>() {
+                Ok(offset) => self.index_list.push(offset),
+                Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => {
+                    tracing::debug!("在第 {} 个偏移量处到达文件末尾，停止读取", i);
+                    break;
+                }
+                Err(e) => {
+                    tracing::error!("读取第 {} 个偏移量失败: {}", i, e);
+                    return Err(e.into());
+                }
+            }
+        }
+
+        // 更新实际的图像数量
+        if self.index_list.len() < self.count {
+            self.count = self.index_list.len();
+            tracing::debug!("实际读取到的图像数量: {}", self.count);
         }
 
         tracing::debug!(
