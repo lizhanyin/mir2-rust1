@@ -381,7 +381,8 @@ pub fn run() -> Result<()> {
             // 清理缩略图缓存
             *thumbnail_cache.lock().unwrap() = None;
 
-            // 清理 UI 数据
+            // 清理 UI 数据（先重置 image_count 为 0，触发 Slint 端的滚动重置）
+            window.set_image_count(0);
             window.set_thumbnails(slint::ModelRc::new(slint::VecModel::from(vec![])));
             window.set_main_preview(slint::Image::default());
             window.set_current_index(0);

@@ -29,10 +29,13 @@ export component ThumbnailGrid inherits Rectangle {
         root.cols_changed(root.cols);
     }
 
-    // 当图像数量变化时，重置请求范围
+    // 当图像数量变化时，重置滚动位置和请求范围
     changed image_count => {
-        // 通过重置 scroll-y 来触发可视范围变化，从而请求加载
-        // 或者直接在 Rust 端处理初始加载
+        // 重置滚动位置到顶部
+        scroll-container.scroll-y = 0px;
+        // 重置请求范围跟踪（强制重新请求）
+        scroll-container.last-request-start = -1;
+        scroll-container.last-request-end = -1;
     }
 
     VerticalLayout {
