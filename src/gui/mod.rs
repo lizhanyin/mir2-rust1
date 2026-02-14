@@ -15,10 +15,10 @@ use tracing_appender::rolling;
 slint::include_modules!();
 
 /// 默认 LRU 缓存最大容量
-const DEFAULT_CACHE_MAX_SIZE: u64 = 9999999;
+const DEFAULT_CACHE_MAX_SIZE: u64 = 100000;
 
 /// 默认按键节流间隔（毫秒）
-const DEFAULT_KEY_THROTTLE_MS: u64 = 35;
+const DEFAULT_KEY_THROTTLE_MS: u64 = 33;
 
 /// 应用程序设置（支持动态修改）
 #[derive(Debug)]
@@ -375,6 +375,16 @@ pub fn run() -> Result<()> {
                     return;
                 }
             };
+
+            // 清理已加载的数据
+            tracing::debug!("清理旧数据...");
+            // 清理缩略图缓存
+            *thumbnail_cache.lock().unwrap() = None;
+
+            // 清理 UI 数据
+            window.set_thumbnails(slint::ModelRc::new(slint::VecModel::from(vec![])));
+            window.set_main_preview(slint::Image::default());
+            window.set_current_index(0);
 
             tracing::debug!("选择的文件: {:?}", path);
             window.set_status_text(SharedString::from("正在加载..."));

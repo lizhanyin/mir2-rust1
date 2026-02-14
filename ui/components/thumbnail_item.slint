@@ -1,0 +1,56 @@
+// 单个缩略图项组件
+// 显示单个缩略图，包含预览图、占位符和索引标签
+
+import { Colors } from "../theme.slint";
+
+export component ThumbnailItem inherits Rectangle {
+    // 属性
+    in property <int> index: 0;              // 缩略图索引
+    in property <bool> selected: false;      // 是否选中
+    in property <image> thumbnail;           // 缩略图图像
+    in property <bool> has_image: false;     // 是否有有效图像
+
+    // 回调
+    callback item_clicked(int);
+
+    width: 80px;
+    height: 80px;
+    background: root.selected ? Colors.bg-selected : Colors.bg-tertiary;
+    border-width: root.selected ? 2px : 1px;
+    border-color: root.selected ? Colors.accent : Colors.border;
+    border-radius: 4px;
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.item_clicked(root.index); }
+
+        // 无图像占位符（加载中或空）
+        // 缩略图预览
+        if root.has_image && root.thumbnail.width > 0 : Image {
+            source: root.thumbnail;
+            width: 72px;
+            height: 72px;
+            x: 4px;
+            y: 0px;
+            image-fit: contain;
+        }
+    }
+
+    // 索引标签
+    Rectangle {
+        x: 4px;
+        y: 64px;
+        width: 28px;
+        height: 14px;
+        background: #00000080;
+        border-radius: 2px;
+
+        Text {
+            text: "#" + root.index;
+            color: Colors.text-white;
+            font-size: 9px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}

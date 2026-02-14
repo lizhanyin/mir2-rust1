@@ -4,6 +4,7 @@
 
 import { ScrollView } from "std-widgets.slint";
 import { FontSettings, Colors } from "../theme.slint";
+import { ThumbnailItem } from "thumbnail_item.slint";
 
 export component ThumbnailGrid inherits Rectangle {
     // 属性
@@ -90,6 +91,9 @@ export component ThumbnailGrid inherits Rectangle {
             property <int> visible-start: self.first-visible-row * max(1, root.cols);
             property <int> visible-end: min(root.image_count - 1, (self.last-visible-row + 1) * max(1, root.cols) - 1);
 
+            // 可视范围内的项目数量（用于真正的虚拟滚动）
+            property <int> visible_count: max(0, self.visible-end - self.visible-start + 1);
+
             // 上一次请求的范围（避免重复请求）
             property <int> last-request-start: -1;
             property <int> last-request-end: -1;
@@ -161,71 +165,24 @@ export component ThumbnailGrid inherits Rectangle {
                     width: scroll-container.width;
                     height: scroll-container.content-height;
 
-                    // 缩略图网格（使用绝对定位，只渲染可视范围内的）
-                    for i in root.image_count : Rectangle {
-                        // 只渲染可视范围内的缩略图
-                        visible: scroll-container.is-visible(i);
+                    // 缩略图网格（真正的虚拟滚动：只创建可视范围内的组件）
+                    // 循环 visible_count 次，而非 image_count 次
+                    for rel_i in scroll-container.visible_count : ThumbnailItem {
+                        // 计算实际索引
+                        property <int> i: scroll-container.visible-start + rel_i;
+
+                        // 如果计算出的索引超出范围则隐藏
+                        visible: i < root.image_count && i >= 0;
 
                         x: 8px + Math.mod(i, root.cols) * 84px;
                         y: 8px + Math.floor(i / root.cols) * 84px;
-                        width: 80px;
-                        height: 80px;
-                        background: i == root.current_index ? Colors.bg-selected : Colors.bg-tertiary;
-                        border-width: i == root.current_index ? 2px : 1px;
-                        border-color: i == root.current_index ? Colors.accent : Colors.border;
-                        border-radius: 4px;
 
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.thumbnail_clicked(i); }
-                        }
+                        index: i;
+                        selected: i == root.current_index;
+                        thumbnail: i < root.thumbnails.length ? root.thumbnails[i] : @image-url("");
+                        has_image: i < root.thumbnails.length;
 
-                        // 缩略图预览
-                        if i < root.thumbnails.length && root.thumbnails[i].width > 0 : Image {
-                            source: root.thumbnails[i];
-                            width: 72px;
-                            height: 72px;
-                            x: 4px;
-                            y: 0px;
-                            image-fit: contain;
-                        }
-
-                        // 无图像占位符（加载中或空）
-                        if i >= root.thumbnails.length || root.thumbnails[i].width == 0 : Rectangle {
-                            width: 72px;
-                            height: 72px;
-                            x: 4px;
-                            y: 0px;
-                            background: Colors.bg-hover;
-                            border-radius: 4px;
-
-                            Text {
-                                text: "...";
-                                color: Colors.text-disabled;
-                                font-size: 12px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                        }
-
-                        // 索引标签
-                        Rectangle {
-                            visible: scroll-container.is-visible(i);
-                            x: 4px;
-                            y: 64px;
-                            width: 28px;
-                            height: 14px;
-                            background: #00000080;
-                            border-radius: 2px;
-
-                            Text {
-                                text: "#" + i;
-                                color: Colors.text-white;
-                                font-size: 9px;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                        }
+                        item_clicked(idx) => { root.thumbnail_clicked(idx); }
                     }
 
                     // 空状态
