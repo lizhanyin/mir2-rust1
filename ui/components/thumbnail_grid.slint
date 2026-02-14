@@ -64,20 +64,40 @@ export component ThumbnailGrid inherits Rectangle {
         scroll-container := Rectangle {
             background: Colors.bg-primary;
 
-            // 使用 length 类型
-            property <length> thumb-size: 84px;
-            property <int> rows: ceil(root.image_count / max(1, root.cols));
-            property <length> content-height: self.rows * 84px + 8px;
-
             // 滚动位置（通过双向绑定控制 ScrollView）
             in-out property <length> scroll-y: 0px;
+
+            // 虚拟滚动参数
+            property <length> thumb-size: 84px;
+            property <int> buffer-rows: 3;  // 上下缓冲行数
+            property <int> total-rows: ceil(root.image_count / max(1, root.cols));
+            property <length> content-height: self.total-rows * 84px + 8px;
+
+            // 可视范围计算（基于滚动位置）
+            // viewport-y 是负值，scroll-y 也保持负值
+            property <int> first-visible-row: max(0, floor(-self.scroll-y / 84px) - self.buffer-rows);
+            property <int> last-visible-row: min(self.total-rows - 1, ceil((-self.scroll-y + scroll-container.height) / 84px) + self.buffer-rows);
+
+            // 可视范围的起始和结束索引
+            property <int> visible-start: self.first-visible-row * max(1, root.cols);
+            property <int> visible-end: min(root.image_count - 1, (self.last-visible-row + 1) * max(1, root.cols) - 1);
 
             // 接收父组件的 current_index
             property <int> sel_index: root.current_index;
 
+            // 判断索引是否在可视范围内
+            function is-visible(index: int) -> bool {
+                if index < 0 || index >= root.image_count {
+                    return false;
+                }
+                let row = floor(index / max(1, root.cols));
+                return row >= self.first-visible-row && row <= self.last-visible-row;
+            }
+
             // 当选中项变化时，确保缩略图可见
             changed sel_index => {
-                let current_row = self.sel_index >= 0 ? Math.floor(self.sel_index / max(1, root.cols)) : 0;
+                let cols = max(1, root.cols);
+                let current_row = self.sel_index >= 0 ? Math.floor(self.sel_index / cols) : 0;
                 let thumb_top = 8px + current_row * 84px;
                 let thumb_bottom = thumb_top + 80px;
 
@@ -112,8 +132,11 @@ export component ThumbnailGrid inherits Rectangle {
                     width: scroll-container.width;
                     height: scroll-container.content-height;
 
-                    // 缩略图网格（使用绝对定位）
+                    // 缩略图网格（使用绝对定位，只渲染可视范围内的）
                     for i in root.image_count : Rectangle {
+                        // 只渲染可视范围内的缩略图
+                        visible: scroll-container.is-visible(i);
+
                         x: 8px + Math.mod(i, root.cols) * 84px;
                         y: 8px + Math.floor(i / root.cols) * 84px;
                         width: 80px;
@@ -158,6 +181,7 @@ export component ThumbnailGrid inherits Rectangle {
 
                         // 索引标签
                         Rectangle {
+                            visible: scroll-container.is-visible(i);
                             x: 4px;
                             y: 64px;
                             width: 28px;

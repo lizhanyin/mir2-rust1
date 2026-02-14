@@ -621,7 +621,7 @@ pub fn run() -> Result<()> {
     // 设置替换图像回调
     {
         let window_weak = window_weak.clone();
-        let library_loader = state.library_loader.clone();
+        let _library_loader = state.library_loader.clone();
 
         window.on_replace_image(move || {
             tracing::debug!("用户触发替换图像操作");
