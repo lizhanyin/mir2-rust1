@@ -1,0 +1,311 @@
+// 设置对话框组件
+// 弹出窗口，用于配置应用程序参数
+
+import { Button, Slider } from "std-widgets.slint";
+import { FontSettings, Colors } from "../theme.slint";
+import { IconButton } from "icon_button.slint";
+import { IconDisplay, IconSet } from "../lib/@lucide.slint";
+
+export component SettingsDialog inherits Rectangle {
+    // 属性
+    in-out property <int> cache_max_size: 9999999;
+    in-out property <int> key_throttle_ms: 50;
+
+    // 回调
+    callback save();
+    callback cancel();
+
+    // 背景遮罩
+    background: #00000080;
+
+    // 对话框容器
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 400px;
+        height: 240px;
+        background: Colors.bg-secondary;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: Colors.border;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000060;
+
+        VerticalLayout {
+            spacing: 0px;
+
+            // 标题栏
+            Rectangle {
+                height: 44px;
+                background: Colors.bg-tertiary;
+                border-top-left-radius: 8px;
+                border-top-right-radius: 8px;
+
+                HorizontalLayout {
+                    padding-left: 16px;
+                    padding-right: 16px;
+
+                    Text {
+                        text: "设置";
+                        color: Colors.text-primary;
+                        font-family: FontSettings.chinese-font;
+                        font-size: 14px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // 内容区域
+            Rectangle {
+                background: Colors.bg-secondary;
+
+                VerticalLayout {
+                    spacing: 20px;
+                    padding-left: 24px;
+                    padding-right: 24px;
+                    padding-top: 20px;
+                    padding-bottom: 16px;
+
+                    // 按键节流间隔
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "按键节流间隔";
+                                color: Colors.text-primary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+
+                            Text {
+                                text: root.key_throttle_ms + " ms";
+                                color: Colors.accent;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                                min-width: 50px;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            // 减少按钮
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 4px;
+                                background: minus_btn.pressed ? Colors.bg-hover : Colors.bg-tertiary;
+
+                                IconDisplay {
+                                    icon: IconSet.Minus;
+                                    size: 16px;
+                                    stroke: Colors.text-primary;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                minus_btn := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        if root.key_throttle_ms > 10 {
+                                            root.key_throttle_ms -= 10;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 滑块
+                            Slider {
+                                width: 200px;
+                                height: 24px;
+                                value: (root.key_throttle_ms - 10) / 190;
+                                changed(new_value) => {
+                                    root.key_throttle_ms = 10 + round(new_value * 190);
+                                }
+                            }
+
+                            // 增加按钮
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 4px;
+                                background: plus_btn.pressed ? Colors.bg-hover : Colors.bg-tertiary;
+
+                                IconDisplay {
+                                    icon: IconSet.Plus;
+                                    size: 16px;
+                                    stroke: Colors.text-primary;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                plus_btn := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        if root.key_throttle_ms < 200 {
+                                            root.key_throttle_ms += 10;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "建议值: 30-100，越小响应越快";
+                            color: Colors.text-secondary;
+                            font-family: FontSettings.chinese-font;
+                            font-size: 10px;
+                        }
+                    }
+
+                    // LRU 缓存最大容量
+                    VerticalLayout {
+                        spacing: 8px;
+
+                        HorizontalLayout {
+                            spacing: 8px;
+
+                            Text {
+                                text: "缓存最大容量";
+                                color: Colors.text-primary;
+                                font-family: FontSettings.chinese-font;
+                                font-size: 12px;
+                                vertical-alignment: center;
+                            }
+
+                            Text {
+                                text: root.cache_max_size == 0 ? "无限制" : root.cache_max_size;
+                                color: Colors.accent;
+                                font-size: 12px;
+                                font-weight: 600;
+                                vertical-alignment: center;
+                                min-width: 70px;
+                            }
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+
+                            // 减少按钮
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 4px;
+                                background: cache_minus_btn.pressed ? Colors.bg-hover : Colors.bg-tertiary;
+
+                                IconDisplay {
+                                    icon: IconSet.Minus;
+                                    size: 16px;
+                                    stroke: Colors.text-primary;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                cache_minus_btn := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        if root.cache_max_size >= 1000 {
+                                            root.cache_max_size -= 1000;
+                                        } else if root.cache_max_size > 0 {
+                                            root.cache_max_size = 0;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // 滑块 (0-20000, 0表示无限制)
+                            Slider {
+                                width: 200px;
+                                height: 24px;
+                                value: root.cache_max_size == 0 ? 1.0 : root.cache_max_size / 20000.0;
+                                changed(new_value) => {
+                                    if new_value >= 0.999 {
+                                        root.cache_max_size = 0;
+                                    } else {
+                                        root.cache_max_size = round(new_value * 20000);
+                                    }
+                                }
+                            }
+
+                            // 增加按钮
+                            Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 4px;
+                                background: cache_plus_btn.pressed ? Colors.bg-hover : Colors.bg-tertiary;
+
+                                IconDisplay {
+                                    icon: IconSet.Plus;
+                                    size: 16px;
+                                    stroke: Colors.text-primary;
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                }
+
+                                cache_plus_btn := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        if root.cache_max_size == 0 {
+                                            root.cache_max_size = 20000;
+                                        } else if root.cache_max_size < 20000 {
+                                            root.cache_max_size += 1000;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: "建议值: 500-10000，最大表示无限制";
+                            color: Colors.text-secondary;
+                            font-family: FontSettings.chinese-font;
+                            font-size: 10px;
+                        }
+                    }
+                }
+            }
+
+            // 按钮区域
+            Rectangle {
+                height: 52px;
+                background: Colors.bg-secondary;
+                border-bottom-left-radius: 8px;
+                border-bottom-right-radius: 8px;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    padding-left: 20px;
+                    padding-right: 20px;
+                    alignment: end;
+
+                    Rectangle {}
+
+                    // 取消按钮
+                    Button {
+                        width: 80px;
+                        height: 32px;
+                        text: "取消";
+                        clicked => { root.cancel(); }
+                    }
+
+                    // 保存按钮
+                    Button {
+                        width: 80px;
+                        height: 32px;
+                        text: "保存";
+                        primary: true;
+                        clicked => { root.save(); }
+                    }
+                }
+            }
+        }
+    }
+}

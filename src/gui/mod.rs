@@ -4,77 +4,81 @@
 
 pub use crate::error::Result;
 
-use slint::SharedString;
+use slint::{Model, SharedString};
+use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
+use std::time::Instant;
 use tracing_appender::rolling;
 
 slint::include_modules!();
 
-/// 多线程加载的阈值
-const MULTITHREAD_THRESHOLD: usize = 50;
+/// 默认 LRU 缓存最大容量
+const DEFAULT_CACHE_MAX_SIZE: u64 = 9999999;
+
+/// 默认按键节流间隔（毫秒）
+const DEFAULT_KEY_THROTTLE_MS: u64 = 50;
+
+/// 应用程序设置（支持动态修改）
+#[derive(Debug)]
+struct AppSettings {
+    /// LRU 缓存最大容量
+    cache_max_size: AtomicU64,
+    /// 按键节流间隔（毫秒）
+    key_throttle_ms: AtomicU64,
+}
+
+impl AppSettings {
+    fn new() -> Self {
+        Self {
+            cache_max_size: AtomicU64::new(DEFAULT_CACHE_MAX_SIZE),
+            key_throttle_ms: AtomicU64::new(DEFAULT_KEY_THROTTLE_MS),
+        }
+    }
+
+    fn get_cache_max_size(&self) -> usize {
+        let size = self.cache_max_size.load(Ordering::SeqCst);
+        if size == 0 {
+            usize::MAX
+        } else {
+            size as usize
+        }
+    }
+
+    fn set_cache_max_size(&self, size: u64) {
+        self.cache_max_size.store(size, Ordering::SeqCst);
+    }
+
+    fn get_key_throttle_ms(&self) -> u128 {
+        self.key_throttle_ms.load(Ordering::SeqCst) as u128
+    }
+
+    fn set_key_throttle_ms(&self, ms: u64) {
+        self.key_throttle_ms.store(ms, Ordering::SeqCst);
+    }
+}
 
 /// 应用状态
 struct AppState {
     /// 库加载器
     library_loader: Rc<Mutex<Option<crate::formats::LibraryLoader>>>,
+    /// 缩略图缓存
+    thumbnail_cache: Rc<Mutex<Option<Arc<ThumbnailCache>>>>,
+    /// 上次按键时间（用于节流）
+    last_key_time: Rc<Mutex<Instant>>,
+    /// 应用设置
+    settings: Rc<AppSettings>,
 }
 
 impl AppState {
     fn new() -> Self {
         Self {
             library_loader: Rc::new(Mutex::new(None)),
+            thumbnail_cache: Rc::new(Mutex::new(None)),
+            last_key_time: Rc::new(Mutex::new(Instant::now())),
+            settings: Rc::new(AppSettings::new()),
         }
-    }
-
-    /// 更新缩略图数组（单线程，用于少量图像）
-    fn update_thumbnails_single_thread(
-        window: &AppWindow,
-        loader: &mut crate::formats::LibraryLoader,
-        count: usize,
-    ) {
-        use slint::Image;
-
-        window.set_is_loading(true);
-        window.set_load_progress(0);
-        window.set_loaded_count(0);
-
-        let mut thumbnails = Vec::with_capacity(count);
-
-        for i in 0..count {
-            match loader.get_preview(i) {
-                Ok(Some(preview_img)) => {
-                    if let Some(slint_image) = rgba_image_to_slint(&preview_img) {
-                        thumbnails.push(slint_image);
-                    } else {
-                        thumbnails.push(Image::default());
-                    }
-                }
-                Ok(None) => {
-                    thumbnails.push(Image::default());
-                }
-                Err(e) => {
-                    tracing::warn!("获取缩略图 {} 失败: {:?}", i, e);
-                    thumbnails.push(Image::default());
-                }
-            }
-
-            // 更新进度
-            let progress = ((i + 1) * 100 / count) as i32;
-            window.set_load_progress(progress);
-            window.set_loaded_count((i + 1) as i32);
-        }
-
-        // 更新缩略图列表
-        let model = slint::VecModel::from(thumbnails);
-        window.set_thumbnails(slint::ModelRc::new(model));
-
-        window.set_is_loading(false);
-        window.set_load_progress(100);
-        window.set_loaded_count(count as i32);
     }
 
     /// 更新主预览图（加载完整尺寸的图像）
@@ -100,115 +104,153 @@ impl AppState {
     }
 }
 
-/// 多线程加载器 - 使用内存存储
-struct MultiThreadLoader {
-    /// 预览图像存储 (线程安全)
-    previews: Arc<Mutex<Vec<Option<image::RgbaImage>>>>,
-    /// 已加载计数
-    loaded_count: Arc<AtomicU32>,
-    /// 总数
+/// 缩略图缓存（LRU 策略）
+struct ThumbnailCache {
+    /// 缓存的缩略图（索引 -> 图像）
+    cache: Mutex<HashMap<usize, slint::Image>>,
+    /// LRU 访问顺序（最近使用的在末尾）
+    access_order: Mutex<Vec<usize>>,
+    /// 总图片数
     total_count: usize,
-    /// 是否完成
-    is_complete: Arc<AtomicBool>,
+    /// 正在加载的索引集合
+    loading: Mutex<std::collections::HashSet<usize>>,
+    /// 已加载数量
+    loaded_count: AtomicU32,
+    /// 应用设置引用
+    settings: Rc<AppSettings>,
 }
 
-impl MultiThreadLoader {
-    fn new(total_count: usize) -> Self {
+impl ThumbnailCache {
+    fn new(total_count: usize, settings: Rc<AppSettings>) -> Self {
         Self {
-            previews: Arc::new(Mutex::new(vec![None; total_count])),
-            loaded_count: Arc::new(AtomicU32::new(0)),
+            cache: Mutex::new(HashMap::new()),
+            access_order: Mutex::new(Vec::new()),
             total_count,
-            is_complete: Arc::new(AtomicBool::new(false)),
+            loading: Mutex::new(std::collections::HashSet::new()),
+            loaded_count: AtomicU32::new(0),
+            settings,
         }
     }
 
-    /// 启动多线程加载
-    fn start_loading(&self, base_path: String, library_type: crate::formats::LibraryType) {
-        let num_threads = std::cmp::min(
-            4,
-            std::thread::available_parallelism()
-                .map(|p| p.get())
-                .unwrap_or(2),
+    /// 获取缓存的缩略图
+    fn get(&self, index: usize) -> Option<slint::Image> {
+        let cache = self.cache.lock().unwrap();
+        if let Some(img) = cache.get(&index) {
+            // 更新 LRU 顺序
+            let mut order = self.access_order.lock().unwrap();
+            order.retain(|&i| i != index);
+            order.push(index);
+            return Some(img.clone());
+        }
+        None
+    }
+
+    /// 插入缩略图到缓存
+    fn put(&self, index: usize, image: slint::Image) {
+        let mut cache = self.cache.lock().unwrap();
+        let mut order = self.access_order.lock().unwrap();
+
+        // 如果已存在，先移除
+        if cache.contains_key(&index) {
+            order.retain(|&i| i != index);
+        }
+
+        // 如果缓存已满，移除最久未使用的（使用动态配置的 max_size）
+        let max_size = self.settings.get_cache_max_size();
+        if cache.len() >= max_size
+            && let Some(old_index) = order.first().copied()
+        {
+            cache.remove(&old_index);
+            order.remove(0);
+        }
+
+        cache.insert(index, image);
+        order.push(index);
+        self.loaded_count.fetch_add(1, Ordering::SeqCst);
+        tracing::trace!("缓存缩略图: {}, 缓存大小: {}", index, cache.len());
+    }
+
+    /// 请求加载指定范围的缩略图（使用共享加载器）
+    fn request_range_with_loader(
+        &self,
+        start: usize,
+        end: usize,
+        window_weak: slint::Weak<AppWindow>,
+        library_loader: Rc<Mutex<Option<crate::formats::LibraryLoader>>>,
+    ) {
+        let start = start.min(self.total_count.saturating_sub(1));
+        let end = end.min(self.total_count.saturating_sub(1));
+
+        if start > end {
+            return;
+        }
+
+        // 找出需要加载的索引
+        let indices_to_load: Vec<usize> = {
+            let cache = self.cache.lock().unwrap();
+            let mut loading = self.loading.lock().unwrap();
+            tracing::debug!("缓存大小: {}, 正在加载: {}", cache.len(), loading.len());
+            let indices: Vec<usize> = (start..=end)
+                .filter(|&i| !cache.contains_key(&i) && !loading.contains(&i))
+                .collect();
+            for &i in &indices {
+                loading.insert(i);
+            }
+            indices
+        };
+
+        if indices_to_load.is_empty() {
+            return;
+        }
+
+        tracing::debug!(
+            "请求加载缩略图: {}..{} ({} 张)",
+            start,
+            end,
+            indices_to_load.len()
         );
 
-        let chunk_size = (self.total_count + num_threads - 1) / num_threads;
+        // 直接在主线程同步加载（避免每次重新打开文件）
+        if let Some(win) = window_weak.upgrade() {
+            let mut loader_guard = library_loader.lock().unwrap();
+            if let Some(ref mut loader) = *loader_guard {
+                let thumbnails = win.get_thumbnails();
+                let mut new_thumbnails: Vec<slint::Image> = thumbnails.iter().collect();
 
-        for thread_id in 0..num_threads {
-            let start = thread_id * chunk_size;
-            let end = std::cmp::min(start + chunk_size, self.total_count);
-
-            if start >= self.total_count {
-                break;
-            }
-
-            let base_path = base_path.clone();
-            let previews = Arc::clone(&self.previews);
-            let loaded_count = self.loaded_count.clone();
-            let total_count = self.total_count;
-            let is_complete = self.is_complete.clone();
-
-            thread::spawn(move || {
-                // 在子线程中创建新的加载器实例
-                let mut loader = match crate::formats::LibraryLoader::load(
-                    &std::path::Path::new(&base_path).with_extension(library_type.main_extension()),
-                ) {
-                    Ok((_, loader)) => loader,
-                    Err(e) => {
-                        tracing::error!("子线程加载库失败: {:?}", e);
-                        return;
-                    }
-                };
-
-                for i in start..end {
-                    // 获取图像预览
-                    match loader.get_preview(i) {
+                for i in &indices_to_load {
+                    match loader.get_preview(*i) {
                         Ok(Some(preview_img)) => {
-                            // 存入共享内存
-                            if let Ok(mut previews) = previews.lock() {
-                                previews[i] = Some(preview_img);
+                            if let Some(slint_image) = rgba_image_to_slint(&preview_img)
+                                && *i < new_thumbnails.len()
+                            {
+                                new_thumbnails[*i] = slint_image.clone();
+                                // 存入缓存，避免重复加载
+                                self.put(*i, slint_image);
                             }
                         }
+                        Ok(None) => {}
                         Err(e) => {
-                            tracing::warn!("加载图像 {} 失败: {:?}", i, e);
+                            tracing::warn!("加载缩略图 {} 失败: {:?}", i, e);
                         }
-                        _ => {}
-                    }
-
-                    // 更新计数
-                    let count = loaded_count.fetch_add(1, Ordering::SeqCst) + 1;
-                    tracing::debug!("加载进度: {}/{}", count, total_count);
-
-                    if count >= total_count as u32 {
-                        is_complete.store(true, Ordering::SeqCst);
                     }
                 }
-            });
-        }
-    }
 
-    /// 获取当前加载进度
-    fn get_progress(&self) -> (u32, bool) {
-        let count = self.loaded_count.load(Ordering::SeqCst);
-        let complete = self.is_complete.load(Ordering::SeqCst);
-        (count, complete)
-    }
+                let model = slint::VecModel::from(new_thumbnails);
+                win.set_thumbnails(slint::ModelRc::new(model));
+                win.set_loaded_count(self.get_loaded_count() as i32);
+            }
 
-    /// 从内存加载图像到 Slint
-    fn load_from_memory(&self, index: usize) -> slint::Image {
-        if let Ok(previews) = self.previews.lock() {
-            if let Some(ref img) = previews[index] {
-                return rgba_image_to_slint(img).unwrap_or_default();
+            // 清除加载标记
+            let mut loading = self.loading.lock().unwrap();
+            for i in &indices_to_load {
+                loading.remove(i);
             }
         }
-        slint::Image::default()
     }
 
-    /// 检查图像是否已加载
-    fn is_loaded(&self, index: usize) -> bool {
-        if let Ok(previews) = self.previews.lock() {
-            return previews[index].is_some();
-        }
-        false
+    /// 获取已加载数量
+    fn get_loaded_count(&self) -> usize {
+        self.cache.lock().unwrap().len()
     }
 }
 
@@ -306,6 +348,8 @@ pub fn run() -> Result<()> {
     {
         let window_weak = window_weak.clone();
         let library_loader = state.library_loader.clone();
+        let thumbnail_cache = state.thumbnail_cache.clone();
+        let settings = state.settings.clone();
 
         window.on_open_file(move || {
             tracing::debug!("用户触发打开文件操作");
@@ -352,6 +396,13 @@ pub fn run() -> Result<()> {
                     window.set_image_format(SharedString::from(&info.format_name()));
                     window.set_current_index(if info.image_count > 0 { 0 } else { -1 });
 
+                    // 初始化空的缩略图数组
+                    let empty_thumbnails: Vec<slint::Image> =
+                        vec![slint::Image::default(); info.image_count];
+                    let model = slint::VecModel::from(empty_thumbnails);
+                    window.set_thumbnails(slint::ModelRc::new(model));
+                    window.set_loaded_count(0);
+
                     // 加载第一张图像信息
                     if info.image_count > 0 {
                         tracing::debug!("加载第一张图像信息");
@@ -369,115 +420,17 @@ pub fn run() -> Result<()> {
                         window.set_main_preview(slint::Image::default());
                     }
 
-                    // 根据图像数量选择加载方式
-                    if info.image_count > MULTITHREAD_THRESHOLD {
-                        // 多线程加载
-                        tracing::info!(
-                            "图像数量 {} > {}，启用多线程加载",
-                            info.image_count,
-                            MULTITHREAD_THRESHOLD
-                        );
-                        window.set_status_text(SharedString::from(&format!(
-                            "多线程加载中: {} 张图像...",
-                            info.image_count
-                        )));
-                        window.set_is_loading(true);
-                        window.set_load_progress(0);
-                        window.set_loaded_count(0);
+                    // 创建缩略图缓存
+                    let cache = Arc::new(ThumbnailCache::new(info.image_count, settings.clone()));
 
-                        // 创建多线程加载器
-                        let mt_loader = Arc::new(MultiThreadLoader::new(info.image_count));
-                        let base_path = info.base_path.clone();
-                        let library_type = info.library_type;
+                    // 保存引用
+                    *library_loader.lock().unwrap() = Some(loader);
+                    *thumbnail_cache.lock().unwrap() = Some(Arc::clone(&cache));
 
-                        // 启动多线程加载
-                        mt_loader.start_loading(base_path, library_type);
-
-                        // 保存加载器引用
-                        *library_loader.lock().unwrap() = Some(loader);
-
-                        // 克隆用于定时器
-                        let window_weak_timer = window_weak.clone();
-                        let mt_loader_timer = Arc::clone(&mt_loader);
-                        let total_count = info.image_count;
-                        let timer_stopped = Arc::new(AtomicBool::new(false));
-                        let timer_stopped_clone = timer_stopped.clone();
-
-                        // 创建定时器轮询进度
-                        let timer = Rc::new(slint::Timer::default());
-                        let timer_clone = timer.clone();
-
-                        timer.start(
-                            slint::TimerMode::Repeated,
-                            Duration::from_millis(100),
-                            move || {
-                                // 检查是否已停止
-                                if timer_stopped_clone.load(Ordering::SeqCst) {
-                                    return;
-                                }
-
-                                if let Some(win) = window_weak_timer.upgrade() {
-                                    let (loaded, complete) = mt_loader_timer.get_progress();
-                                    let progress = (loaded * 100 / total_count as u32) as i32;
-
-                                    win.set_load_progress(progress);
-                                    win.set_loaded_count(loaded as i32);
-
-                                    // 更新已加载的缩略图
-                                    let mut thumbnails = Vec::new();
-                                    for i in 0..total_count {
-                                        if mt_loader_timer.is_loaded(i) {
-                                            thumbnails.push(mt_loader_timer.load_from_memory(i));
-                                        } else {
-                                            thumbnails.push(slint::Image::default());
-                                        }
-                                    }
-                                    let model = slint::VecModel::from(thumbnails);
-                                    win.set_thumbnails(slint::ModelRc::new(model));
-
-                                    if complete {
-                                        win.set_is_loading(false);
-                                        win.set_status_text(SharedString::from(&format!(
-                                            "已加载: {} 张图像",
-                                            total_count
-                                        )));
-                                        // 停止定时器
-                                        timer_stopped_clone.store(true, Ordering::SeqCst);
-                                        timer_clone.stop();
-                                    }
-                                }
-                            },
-                        );
-
-                        // 保持定时器引用，防止被 drop
-                        std::mem::forget(timer);
-                    } else {
-                        // 单线程加载
-                        tracing::info!(
-                            "图像数量 {} <= {}，使用单线程加载",
-                            info.image_count,
-                            MULTITHREAD_THRESHOLD
-                        );
-                        window.set_status_text(SharedString::from(&format!(
-                            "正在加载缩略图: {} 张图像...",
-                            info.image_count
-                        )));
-
-                        if info.image_count > 0 {
-                            AppState::update_thumbnails_single_thread(
-                                &window,
-                                &mut loader,
-                                info.image_count,
-                            );
-                            window.set_status_text(SharedString::from(&format!(
-                                "已加载: {} ({} 张图像)",
-                                info.file_name, info.image_count
-                            )));
-                        }
-
-                        // 保存加载器
-                        *library_loader.lock().unwrap() = Some(loader);
-                    }
+                    window.set_status_text(SharedString::from(&format!(
+                        "已打开: {} ({} 张图像)",
+                        info.file_name, info.image_count
+                    )));
                 }
                 Err(e) => {
                     tracing::error!("加载库文件失败: {:?}", e);
@@ -788,12 +741,49 @@ pub fn run() -> Result<()> {
         });
     }
 
+    // 设置请求缩略图回调（懒加载）
+    {
+        let window_weak = window_weak.clone();
+        let thumbnail_cache = state.thumbnail_cache.clone();
+        let library_loader = state.library_loader.clone();
+
+        window.on_request_thumbnails(move |start, end| {
+            let start = start as usize;
+            let end = end as usize;
+
+            tracing::debug!("请求缩略图: {} - {}", start, end);
+
+            // 使用缓存的加载器加载缩略图
+            if let Some(ref cache) = *thumbnail_cache.lock().unwrap() {
+                cache.request_range_with_loader(
+                    start,
+                    end,
+                    window_weak.clone(),
+                    library_loader.clone(),
+                );
+            }
+        });
+    }
+
     // 设置键盘事件回调 - 在 Rust 端处理导航
     {
         let window_weak = window_weak.clone();
         let library_loader = state.library_loader.clone();
+        let last_key_time = state.last_key_time.clone();
+        let settings = state.settings.clone();
 
         window.on_key_pressed(move |text| {
+            // 节流检查：使用动态配置的间隔
+            {
+                let mut last_time = last_key_time.lock().unwrap();
+                let elapsed = last_time.elapsed().as_millis();
+                let throttle_ms = settings.get_key_throttle_ms();
+                if elapsed < throttle_ms {
+                    return; // 忽略过快的按键
+                }
+                *last_time = Instant::now();
+            }
+
             let window = match window_weak.upgrade() {
                 Some(w) => w,
                 None => return,
@@ -839,6 +829,20 @@ pub fn run() -> Result<()> {
                     AppState::update_main_preview(&window, loader, new_index as usize);
                 }
             }
+        });
+    }
+
+    // 设置保存设置回调
+    {
+        let settings = state.settings.clone();
+
+        window.on_save_settings(move |cache_max_size, key_throttle_ms| {
+            settings.set_cache_max_size(cache_max_size as u64);
+            settings.set_key_throttle_ms(key_throttle_ms as u64);
+            tracing::info!(
+                "设置已更新: cache_max_size={}, key_throttle_ms={}",
+                cache_max_size, key_throttle_ms
+            );
         });
     }
 

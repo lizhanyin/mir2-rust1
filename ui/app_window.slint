@@ -7,6 +7,7 @@ import { PropertyPanel } from "components/property_panel.slint";
 import { PreviewPanel } from "components/preview_panel.slint";
 import { ThumbnailGrid } from "components/thumbnail_grid.slint";
 import { StatusBar } from "components/status_bar.slint";
+import { SettingsDialog } from "components/settings_dialog.slint";
 
 export component AppWindow inherits Window {
     title: "Library Editor - Rust";
@@ -52,6 +53,11 @@ export component AppWindow inherits Window {
     // 已加载数量
     in-out property <int> loaded_count: 0;
 
+    // 设置相关属性
+    in-out property <bool> show_settings: false;
+    in-out property <int> cache_max_size: 9999999;
+    in-out property <int> key_throttle_ms: 50;
+
     // 回调
     callback open_file();
     callback save_file();
@@ -63,6 +69,10 @@ export component AppWindow inherits Window {
     callback thumbnail_clicked(int);
     callback toggle_preview_bg();
     callback key_pressed(string);
+    // 请求加载指定范围的缩略图（懒加载）
+    callback request_thumbnails(int, int);
+    // 设置相关回调
+    callback save_settings(int, int);
 
     // 主容器 - 使用 FocusScope 处理键盘事件
     focus-scope := FocusScope {
@@ -70,6 +80,12 @@ export component AppWindow inherits Window {
         height: 100%;
 
         key-pressed(event) => {
+            // 如果设置对话框打开，Escape 关闭它
+            if root.show_settings && event.text == Key.Escape {
+                root.show_settings = false;
+                return accept;
+            }
+
             // 调用 Rust 回调记录日志
             root.key_pressed(event.text);
 
@@ -138,6 +154,7 @@ export component AppWindow inherits Window {
                 prev_image => { root.prev_image(); }
                 next_image => { root.next_image(); }
                 toggle_preview_bg => { root.toggle_preview_bg(); }
+                open_settings => { root.show_settings = true; }
             }
 
             // ========== 中间区域：左右分栏 ==========
@@ -159,9 +176,9 @@ export component AppWindow inherits Window {
                         image_height: root.image_height;
                     }
 
-                    // ========== 右侧：主预览区域 ==========
-                    
-                    
+                    // ========== 右侧：主预览区域 =========={
+
+
                      PreviewPanel {
                         current_index: root.current_index;
                         main_preview: root.main_preview;
@@ -178,6 +195,7 @@ export component AppWindow inherits Window {
                 thumbnails: root.thumbnails;
                 cols_changed(cols) => { root.thumb_cols = cols; }
                 thumbnail_clicked(index) => { root.thumbnail_clicked(index); }
+                request_thumbnails(start, end) => { root.request_thumbnails(start, end); }
             }
 
             // ========== 底部状态栏 ==========
@@ -190,5 +208,18 @@ export component AppWindow inherits Window {
             }
         }
     }
+    }
+
+    // ========== 设置对话框（覆盖层） ==========
+    if root.show_settings : SettingsDialog {
+        cache_max_size: root.cache_max_size;
+        key_throttle_ms: root.key_throttle_ms;
+        save => {
+            root.save_settings(root.cache_max_size, root.key_throttle_ms);
+            root.show_settings = false;
+        }
+        cancel => {
+            root.show_settings = false;
+        }
     }
 }

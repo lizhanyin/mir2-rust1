@@ -15,6 +15,7 @@ export component Toolbar inherits Rectangle {
     callback prev_image();
     callback next_image();
     callback toggle_preview_bg();
+    callback open_settings();
 
     // 属性
     in property <bool> preview_bg_light: false;
@@ -222,6 +223,17 @@ export component Toolbar inherits Rectangle {
 
         // 右侧弹性空间
         Rectangle {}
+
+        // 设置按钮
+        IconButton {
+            tooltip-text: "设置";
+            clicked_handler => { root.open_settings(); }
+            IconDisplay {
+                icon: IconSet.Settings;
+                size: 18px;
+                stroke: Colors.text-primary;
+            }
+        }
 
         // 切换背景色按钮
         IconButton {

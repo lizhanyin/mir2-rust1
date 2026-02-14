@@ -1,5 +1,6 @@
 // 底部缩略图网格组件
 // 显示所有图像的缩略图，支持网格布局和滚动
+// 支持懒加载：只在需要时请求加载可视范围的缩略图
 
 import { ScrollView } from "std-widgets.slint";
 import { FontSettings, Colors } from "../theme.slint";
@@ -14,6 +15,8 @@ export component ThumbnailGrid inherits Rectangle {
     callback thumbnail_clicked(int);
     // 列数变化回调
     callback cols_changed(int);
+    // 请求加载指定范围的缩略图（懒加载）
+    callback request_thumbnails(int, int);
 
     // 内部计算列数 - 使用组件的实际宽度计算
     property <int> cols: max(1, floor((self.width - 16px) / 84px));
@@ -23,6 +26,12 @@ export component ThumbnailGrid inherits Rectangle {
     // 当宽度变化时通知父组件列数（比 changed cols 更可靠）
     changed width => {
         root.cols_changed(root.cols);
+    }
+
+    // 当图像数量变化时，重置请求范围
+    changed image_count => {
+        // 通过重置 scroll-y 来触发可视范围变化，从而请求加载
+        // 或者直接在 Rust 端处理初始加载
     }
 
     VerticalLayout {
@@ -69,18 +78,21 @@ export component ThumbnailGrid inherits Rectangle {
 
             // 虚拟滚动参数
             property <length> thumb-size: 84px;
-            property <int> buffer-rows: 3;  // 上下缓冲行数
+            property <int> buffer-rows: 1;  // 上下缓冲行数
             property <int> total-rows: ceil(root.image_count / max(1, root.cols));
             property <length> content-height: self.total-rows * 84px + 8px;
 
             // 可视范围计算（基于滚动位置）
-            // viewport-y 是负值，scroll-y 也保持负值
             property <int> first-visible-row: max(0, floor(-self.scroll-y / 84px) - self.buffer-rows);
             property <int> last-visible-row: min(self.total-rows - 1, ceil((-self.scroll-y + scroll-container.height) / 84px) + self.buffer-rows);
 
             // 可视范围的起始和结束索引
             property <int> visible-start: self.first-visible-row * max(1, root.cols);
             property <int> visible-end: min(root.image_count - 1, (self.last-visible-row + 1) * max(1, root.cols) - 1);
+
+            // 上一次请求的范围（避免重复请求）
+            property <int> last-request-start: -1;
+            property <int> last-request-end: -1;
 
             // 接收父组件的 current_index
             property <int> sel_index: root.current_index;
@@ -92,6 +104,23 @@ export component ThumbnailGrid inherits Rectangle {
                 }
                 let row = floor(index / max(1, root.cols));
                 return row >= self.first-visible-row && row <= self.last-visible-row;
+            }
+
+            // 当可视行变化时，请求加载缩略图
+            changed first-visible-row => {
+                if root.image_count > 0 && (self.visible-start != self.last-request-start || self.visible-end != self.last-request-end) {
+                    self.last-request-start = self.visible-start;
+                    self.last-request-end = self.visible-end;
+                    root.request_thumbnails(self.visible-start, self.visible-end);
+                }
+            }
+
+            changed last-visible-row => {
+                if root.image_count > 0 && (self.visible-start != self.last-request-start || self.visible-end != self.last-request-end) {
+                    self.last-request-start = self.visible-start;
+                    self.last-request-end = self.visible-end;
+                    root.request_thumbnails(self.visible-start, self.visible-end);
+                }
             }
 
             // 当选中项变化时，确保缩略图可见
@@ -161,7 +190,7 @@ export component ThumbnailGrid inherits Rectangle {
                             image-fit: contain;
                         }
 
-                        // 无图像占位符
+                        // 无图像占位符（加载中或空）
                         if i >= root.thumbnails.length || root.thumbnails[i].width == 0 : Rectangle {
                             width: 72px;
                             height: 72px;
@@ -171,7 +200,7 @@ export component ThumbnailGrid inherits Rectangle {
                             border-radius: 4px;
 
                             Text {
-                                text: "空";
+                                text: "...";
                                 color: Colors.text-disabled;
                                 font-size: 12px;
                                 horizontal-alignment: center;
