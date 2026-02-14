@@ -6,6 +6,7 @@ pub mod mlibrary_v2;
 pub mod wemade_library;
 pub mod wtl_library;
 
+pub use mlibrary_v0::MLibraryV0;
 pub use mlibrary_v1::MImage;
 pub use mlibrary_v2::MLibraryV2;
 
@@ -160,6 +161,18 @@ impl ImageInfo {
         }
     }
 
+    /// 从 MLibraryV0::MImage 创建图像信息 (WeMade Library)
+    pub fn from_v0_image(index: usize, image: &mlibrary_v0::MImage) -> Self {
+        Self {
+            index,
+            width: image.width as i32,
+            height: image.height as i32,
+            x: image.x as i32,
+            y: image.y as i32,
+            has_mask: ShadowInfo::None,
+        }
+    }
+
     /// 从 MLibraryV2::MImage 创建图像信息
     pub fn from_v2_image(index: usize, image: &mlibrary_v2::MImage) -> Self {
         let shadow_info = if image.has_mask {
@@ -201,6 +214,8 @@ pub struct LibraryLoader {
     library_v1: Option<MLibraryV1>,
     /// MLibrary V2 实例
     library_v2: Option<MLibraryV2>,
+    /// MLibrary V0 / WeMade Library 实例
+    library_v0: Option<MLibraryV0>,
 }
 
 impl LibraryLoader {
@@ -210,6 +225,7 @@ impl LibraryLoader {
             info: None,
             library_v1: None,
             library_v2: None,
+            library_v0: None,
         }
     }
 
@@ -287,6 +303,27 @@ impl LibraryLoader {
 
                 Ok((info, loader))
             }
+            LibraryType::WeMade | LibraryType::MLV0 => {
+                tracing::debug!("使用 WeMade Library 加载器");
+                let library = MLibraryV0::new(base_path.clone())?;
+                let count = library.count;
+
+                tracing::debug!("成功加载 {} 张图像", count);
+
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                let info = LibraryInfo::new(base_path, file_name, lib_type, count);
+
+                let mut loader = Self::new();
+                loader.info = Some(info.clone());
+                loader.library_v0 = Some(library);
+
+                Ok((info, loader))
+            }
             _ => {
                 tracing::error!("暂不支持此格式: {}", lib_type.name());
                 Err(LibraryError::InvalidFormat)
@@ -315,6 +352,12 @@ impl LibraryLoader {
             let info = ImageInfo::from_v1_image(index, image);
             tracing::debug!("图像信息: {}x{}, offset: ({}, {})", info.width, info.height, info.x, info.y);
             Ok(info)
+        } else if let Some(ref mut lib) = self.library_v0 {
+            // 从 V0 (WeMade) 获取
+            let image = lib.get_image(index)?;
+            let info = ImageInfo::from_v0_image(index, image);
+            tracing::debug!("图像信息: {}x{}, offset: ({}, {})", info.width, info.height, info.x, info.y);
+            Ok(info)
         } else {
             Err(LibraryError::ParseError(
                 "获取图像信息时异常：库未加载".to_string(),
@@ -336,6 +379,15 @@ impl LibraryLoader {
         if let Some(ref mut lib) = self.library_v1 {
             let preview = lib.get_preview(index)?.cloned();
             return Ok(preview);
+        }
+
+        // 从 V0 (WeMade) 获取
+        if let Some(ref mut lib) = self.library_v0 {
+            let image = lib.get_image(index)?;
+            if let Some(ref img) = image.image {
+                return Ok(Some(img.clone()));
+            }
+            return Ok(None);
         }
 
         Err(LibraryError::ParseError(

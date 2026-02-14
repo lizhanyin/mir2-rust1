@@ -12,8 +12,18 @@ export component ThumbnailGrid inherits Rectangle {
 
     // 回调
     callback thumbnail_clicked(int);
+    // 列数变化回调
+    callback cols_changed(int);
+
+    // 内部计算列数 - 使用组件的实际宽度计算
+    property <int> cols: max(1, floor((self.width - 16px) / 84px));
 
     background: Colors.bg-secondary;
+
+    // 当宽度变化时通知父组件列数（比 changed cols 更可靠）
+    changed width => {
+        root.cols_changed(root.cols);
+    }
 
     VerticalLayout {
         spacing: 0px;
@@ -56,8 +66,7 @@ export component ThumbnailGrid inherits Rectangle {
 
             // 使用 length 类型
             property <length> thumb-size: 84px;
-            property <int> cols: max(1, floor((self.width - 16px) / 84px));
-            property <int> rows: ceil(root.image_count / max(1, self.cols));
+            property <int> rows: ceil(root.image_count / max(1, root.cols));
             property <length> content-height: self.rows * 84px + 8px;
 
             ScrollView {
@@ -71,7 +80,7 @@ export component ThumbnailGrid inherits Rectangle {
                 // 使用单向绑定，用户手动滚动时不会更新
                 viewport-y: {
                     // 当前选中缩略图的位置
-                    let current_row = root.current_index >= 0 ? Math.floor(root.current_index / max(1, scroll-container.cols)) : 0;
+                    let current_row = root.current_index >= 0 ? Math.floor(root.current_index / max(1, root.cols)) : 0;
                     let thumb_y = 8px + current_row * 84px;
 
                     // 可滚动的最大距离
@@ -92,8 +101,8 @@ export component ThumbnailGrid inherits Rectangle {
 
                     // 缩略图网格（使用绝对定位）
                     for i in root.image_count : Rectangle {
-                        x: 8px + Math.mod(i, scroll-container.cols) * 84px;
-                        y: 8px + Math.floor(i / scroll-container.cols) * 84px;
+                        x: 8px + Math.mod(i, root.cols) * 84px;
+                        y: 8px + Math.floor(i / root.cols) * 84px;
                         width: 80px;
                         height: 80px;
                         background: i == root.current_index ? Colors.bg-selected : Colors.bg-tertiary;

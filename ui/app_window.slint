@@ -10,8 +10,8 @@ import { StatusBar } from "components/status_bar.slint";
 
 export component AppWindow inherits Window {
     title: "Library Editor - Rust";
-    width: 1024px;
-    height: 768px;
+    min-width: 1024px;
+    min-height: 768px;
     resize-border-width: 8px;
 
     // 将焦点转发给 FocusScope
@@ -41,6 +41,9 @@ export component AppWindow inherits Window {
 
     // 缩放比例 (50-200, 默认100表示100%)
     in-out property <int> zoom_scale: 100;
+
+    // 缩略图每行列数（用于键盘导航，由 thumbnail-grid 计算后传入）
+    in-out property <int> thumb_cols: 1;
 
     // 加载进度 (0-100)
     in-out property <int> load_progress: 0;
@@ -75,6 +78,7 @@ export component AppWindow inherits Window {
             }
 
             let current = root.current_index;
+            let cols = root.thumb_cols;
 
             if event.text == Key.LeftArrow {
                 if current > 0 {
@@ -85,6 +89,21 @@ export component AppWindow inherits Window {
             } else if event.text == Key.RightArrow {
                 if current < root.image_count - 1 {
                     root.current_index = current + 1;
+                    root.thumbnail_clicked(root.current_index);
+                }
+                return accept;
+            } else if event.text == Key.UpArrow {
+                // 向上移动一行
+                if current >= cols {
+                    root.current_index = current - cols;
+                    root.thumbnail_clicked(root.current_index);
+                }
+                return accept;
+            } else if event.text == Key.DownArrow {
+                // 向下移动一行
+                let new_index = current + cols;
+                if new_index < root.image_count {
+                    root.current_index = new_index;
                     root.thumbnail_clicked(root.current_index);
                 }
                 return accept;
@@ -141,7 +160,9 @@ export component AppWindow inherits Window {
                     }
 
                     // ========== 右侧：主预览区域 ==========
-                    PreviewPanel {
+                    
+                    
+                     PreviewPanel {
                         current_index: root.current_index;
                         main_preview: root.main_preview;
                         preview_bg_light: root.preview_bg_light;
@@ -151,10 +172,11 @@ export component AppWindow inherits Window {
             }
 
             // ========== 底部：缩略图列表 ==========
-            ThumbnailGrid {
+            thumbnail-grid := ThumbnailGrid {
                 image_count: root.image_count;
                 current_index: root.current_index;
                 thumbnails: root.thumbnails;
+                cols_changed(cols) => { root.thumb_cols = cols; }
                 thumbnail_clicked(index) => { root.thumbnail_clicked(index); }
             }
 

@@ -233,7 +233,7 @@ impl MLibraryV1 {
 
         // 计算每行字节数 (需要4字节对齐)
         let row_bytes = if bo16bit { width * 2 } else { width };
-        let aligned_row_bytes = ((row_bytes + 3) / 4) * 4;
+        let aligned_row_bytes = row_bytes.div_ceil(4) * 4;
 
         for y in (0..height).rev() {
             for x in 0..width {
